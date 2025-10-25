@@ -41,7 +41,7 @@ export default function EmailHighlighter({
     // Sort findings by startIndex to process them in order
     const sortedFindings = [...findings].sort((a, b) => (a.startIndex || 0) - (b.startIndex || 0));
 
-    const parts: JSX.Element[] = [];
+    const parts: React.ReactElement[] = [];
     let lastIndex = 0;
 
     sortedFindings.forEach((finding, index) => {
