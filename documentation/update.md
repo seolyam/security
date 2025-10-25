@@ -189,16 +189,5 @@ pnpm start
 5. **Offline Sync** (using IndexedDB + Supabase Sync API) for resilient use without internet.
 
 ---
-POSTGRES_URL="postgres://postgres.saxmpvvgjkidotpqsaht:9nebDEBOQSmpyylj@aws-1-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require&supa=base-pooler.x"
-POSTGRES_USER="postgres"
-POSTGRES_HOST="db.saxmpvvgjkidotpqsaht.supabase.co"
-SUPABASE_JWT_SECRET="QB5CVVMpye0GTsUEgnsHiKG+fhN7RQgfxUCpaFGsPxGZ0J8Q8FU192A8ENoZqEte++makegOxMQhfv2dgwXWyw=="
-NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNheG1wdnZnamtpZG90cHFzYWh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzNjQ2NTAsImV4cCI6MjA3Njk0MDY1MH0.Z05qOMiT_OnNLD3WwNxd-gTEwg1LRSwHDoYQOpq7vEY"
-POSTGRES_PRISMA_URL="postgres://postgres.saxmpvvgjkidotpqsaht:9nebDEBOQSmpyylj@aws-1-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require&pgbouncer=true"
-POSTGRES_PASSWORD="9nebDEBOQSmpyylj"
-POSTGRES_DATABASE="postgres"
-SUPABASE_URL="https://saxmpvvgjkidotpqsaht.supabase.co"
-SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNheG1wdnZnamtpZG90cHFzYWh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzNjQ2NTAsImV4cCI6MjA3Njk0MDY1MH0.Z05qOMiT_OnNLD3WwNxd-gTEwg1LRSwHDoYQOpq7vEY"
-NEXT_PUBLIC_SUPABASE_URL="https://saxmpvvgjkidotpqsaht.supabase.co"
-SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNheG1wdnZnamtpZG90cHFzYWh0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MTM2NDY1MCwiZXhwIjoyMDc2OTQwNjUwfQ.p8hX5gtsQ3ZWb6Ho_crS5tp8pyyEXm6fCKFJ7gKyFcc"
-POSTGRES_URL_NON_POOLING="postgres://postgres.saxmpvvgjkidotpqsaht:9nebDEBOQSmpyylj@aws-1-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require"
+**⚠️ SECURITY NOTICE: All credentials have been removed from this documentation.**
+**Please use environment variables (.env.local) for all sensitive configuration.**
