@@ -1,9 +1,5 @@
-import AnalyzerForm from '../components/AnalyzerForm';
+import Dashboard from '../components/Dashboard';
 
 export default function Home() {
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <AnalyzerForm />
-    </div>
-  );
+  return <Dashboard initialTab="analyzer" />;
 }

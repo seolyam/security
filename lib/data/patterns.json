@@ -1,0 +1,103 @@
+{
+  "phishingKeywords": {
+    "urgent": {
+      "weight": 15,
+      "severity": "medium",
+      "patterns": ["urgent", "immediate", "asap", "right now", "emergency", "critical"]
+    },
+    "verification": {
+      "weight": 20,
+      "severity": "medium",
+      "patterns": ["verify", "verification", "confirm", "validate", "authenticate"]
+    },
+    "credentials": {
+      "weight": 25,
+      "severity": "high",
+      "patterns": ["password", "login", "username", "account", "credentials", "sign in"]
+    },
+    "financial": {
+      "weight": 20,
+      "severity": "medium",
+      "patterns": ["bank", "payment", "money", "transaction", "balance", "funds"]
+    },
+    "suspicious": {
+      "weight": 15,
+      "severity": "medium",
+      "patterns": ["suspicious", "unusual", "activity", "security alert", "breach"]
+    },
+    "action": {
+      "weight": 10,
+      "severity": "low",
+      "patterns": ["click", "update", "download", "install", "open"]
+    }
+  },
+
+  "suspiciousDomains": [
+    "paypal-secure.com",
+    "secure-paypal.com",
+    "appleid.apple.verify.com",
+    "microsoft-support.com",
+    "amazon-security.com",
+    "bankofamerica-secure.com",
+    "chase-verify.com",
+    "wellsfargo-alert.com",
+    "google-account.com",
+    "facebook-security.com"
+  ],
+
+  "legitimateDomains": [
+    "paypal.com",
+    "bankofamerica.com",
+    "chase.com",
+    "wellsfargo.com",
+    "apple.com",
+    "microsoft.com",
+    "amazon.com",
+    "google.com",
+    "facebook.com",
+    "github.com"
+  ],
+
+  "urlPatterns": {
+    "shorteners": ["bit.ly", "tinyurl", "goo.gl", "t.co", "tiny.cc", "is.gd", "buff.ly"],
+    "suspicious": ["login", "secure", "verify", "account", "bank", "paypal"],
+    "ipPatterns": ["\\b\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\b"]
+  },
+
+  "attachmentPatterns": {
+    "suspicious": [".exe", ".scr", ".zip", ".rar", ".bat", ".cmd", ".pif", ".com"],
+    "documents": [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx"]
+  },
+
+  "htmlIndicators": {
+    "forms": ["<form", "<input", "<button", "<select"],
+    "scripts": ["<script", "javascript:", "onload", "onclick"],
+    "iframes": ["<iframe", "<embed", "<object"],
+    "links": ["<a href", "href="]
+  },
+
+  "scoringWeights": {
+    "keywords": 0.25,
+    "headers": 0.25,
+    "ml": 0.40,
+    "misc": 0.10
+  },
+
+  "phishingTemplates": {
+    "paypal": {
+      "patterns": ["paypal", "account verification", "security alert", "limited access"],
+      "commonSubjects": ["Account Security Alert", "Verify Your PayPal Account", "Urgent: Account Access Limited"],
+      "riskScore": 80
+    },
+    "bank": {
+      "patterns": ["bank", "statement", "transaction", "account balance", "security check"],
+      "commonSubjects": ["Account Statement", "Transaction Alert", "Security Verification"],
+      "riskScore": 60
+    },
+    "tech": {
+      "patterns": ["apple", "microsoft", "google", "amazon", "account", "password", "login"],
+      "commonSubjects": ["Account Security", "Password Reset", "Unusual Activity"],
+      "riskScore": 75
+    }
+  }
+}

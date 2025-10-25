@@ -1,9 +1,9 @@
 "use client"
 
 import { useState } from 'react';
-import { analyzeEmail } from '../lib/ruleEngine';
+import { analyzeEmailV2 } from '../lib/ruleEngine';
 import { saveAnalysisToHistory, AnalysisHistoryItem } from '../lib/historyUtils';
-import { exportToJSON, exportToPDF } from '../lib/exportUtils';
+import { generateEnhancedJSON, generateEnhancedPDF } from '../lib/enhancedExport';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -11,9 +11,10 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Progress } from './ui/progress';
 import { Badge } from './ui/badge';
-import { AlertTriangle, CheckCircle, AlertCircle, Download, FileText, History, Eye, Brain } from 'lucide-react';
+import { AlertTriangle, CheckCircle, AlertCircle, Download, FileText, History, Eye, Brain, Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import EmailHighlighter from './EmailHighlighter';
 import HistoryPanel from './HistoryPanel';
+import ConfidenceGauge from './ConfidenceGauge';
 
 export default function AnalyzerForm() {
   const [formData, setFormData] = useState({
@@ -33,24 +34,24 @@ export default function AnalyzerForm() {
     e.preventDefault();
     setIsAnalyzing(true);
 
-    // Simulate analysis delay for better UX
-    setTimeout(async () => {
-      try {
-        const analysis = await analyzeEmail(formData, useML);
-        setResult(analysis);
+    try {
+      const analysis = await analyzeEmailV2(formData, {
+        enableML: useML,
+        sensitivity: 'medium'
+      });
+      setResult(analysis);
 
-        // Save to history
-        const emailData = {
-          ...formData,
-          analyzedAt: new Date(),
-        };
-        saveAnalysisToHistory(emailData, analysis);
-      } catch (error) {
-        console.error('Analysis failed:', error);
-      } finally {
-        setIsAnalyzing(false);
-      }
-    }, 1000);
+      // Save to history
+      const emailData = {
+        ...formData,
+        analyzedAt: new Date(),
+      };
+      saveAnalysisToHistory(emailData, analysis);
+    } catch (error) {
+      console.error('Analysis failed:', error);
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -80,7 +81,7 @@ export default function AnalyzerForm() {
       ...formData,
       analyzedAt: new Date(),
     };
-    exportToJSON(emailData, result);
+    generateEnhancedJSON(emailData, result);
   };
 
   const handleExportPDF = async () => {
@@ -92,7 +93,7 @@ export default function AnalyzerForm() {
         ...formData,
         analyzedAt: new Date(),
       };
-      await exportToPDF(emailData, result);
+      await generateEnhancedPDF(emailData, result);
     } catch (error) {
       console.error('Export failed:', error);
     } finally {
@@ -120,15 +121,16 @@ export default function AnalyzerForm() {
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-7xl">
-      <div className="mb-8 text-center">
-        <h1 className="text-4xl font-bold mb-2">Phishsense</h1>
-        <p className="text-gray-600">Advanced Phishing Email Detection</p>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="text-center">
+        <h1 className="text-3xl font-bold mb-2">Email Security Analyzer</h1>
+        <p className="text-gray-600">Advanced phishing detection with AI-powered analysis</p>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Input Form */}
-        <div className="xl:col-span-1">
+        <div className="space-y-6">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -176,7 +178,7 @@ export default function AnalyzerForm() {
                   <Textarea
                     id="body"
                     placeholder="Paste the full email content here..."
-                    rows={12}
+                    rows={8}
                     value={formData.body}
                     onChange={(e) => handleInputChange('body', e.target.value)}
                   />
@@ -184,17 +186,16 @@ export default function AnalyzerForm() {
 
                 {/* Advanced Options */}
                 <div className="space-y-3 p-4 border rounded-lg bg-gray-50">
-                  <div className="flex items-center justify-between">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowHeaders(!showHeaders)}
-                      className="text-sm"
-                    >
-                      {showHeaders ? 'Hide' : 'Show'} Advanced Options
-                    </Button>
-                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowHeaders(!showHeaders)}
+                    className="flex items-center gap-1 text-sm"
+                  >
+                    {showHeaders ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    Advanced Options
+                  </Button>
 
                   {showHeaders && (
                     <>
@@ -243,161 +244,123 @@ export default function AnalyzerForm() {
 
           {/* History Panel */}
           {showHistory && (
-            <div className="mt-4">
-              <HistoryPanel
-                onLoadAnalysis={handleLoadAnalysis}
-                className="max-h-96"
-              />
-            </div>
+            <HistoryPanel
+              onLoadAnalysis={handleLoadAnalysis}
+              className="max-h-96"
+            />
           )}
         </div>
 
         {/* Results */}
-        <div className="xl:col-span-2">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Analysis Results</CardTitle>
-                  <CardDescription>
-                    {result ? 'Phishing detection analysis complete' : 'Results will appear here after analysis'}
-                  </CardDescription>
-                </div>
-                {result && (
+        <div className="space-y-6">
+          {result ? (
+            <>
+              {/* Confidence Gauge */}
+              <ConfidenceGauge
+                score={result.score}
+                breakdown={result.breakdown}
+                showBreakdown={true}
+              />
+
+              {/* Export Options */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Download className="h-5 w-5" />
+                    Export Options
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
-                      size="sm"
                       onClick={handleExportJSON}
                       className="flex items-center gap-1"
                     >
-                      <Download className="h-4 w-4" />
+                      <FileText className="h-4 w-4" />
                       JSON
                     </Button>
                     <Button
                       variant="outline"
-                      size="sm"
                       onClick={handleExportPDF}
                       disabled={isExporting}
                       className="flex items-center gap-1"
                     >
-                      <FileText className="h-4 w-4" />
-                      {isExporting ? 'Exporting...' : 'PDF'}
+                      <Download className="h-4 w-4" />
+                      {isExporting ? 'Exporting...' : 'PDF Report'}
                     </Button>
                   </div>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              {result ? (
-                <div className="space-y-6">
-                  {/* Risk Score */}
-                  <div className="text-center">
-                    <div className="mb-4">
-                      <div className={`text-4xl font-bold ${getScoreColor(result.score)}`}>
-                        {result.score}%
-                      </div>
-                      <div className="text-lg text-gray-600">Risk Score</div>
-                    </div>
+                </CardContent>
+              </Card>
 
-                    <div className="flex items-center justify-center gap-2 mb-4">
-                      {getRiskIcon(result.riskLevel)}
-                      <Badge variant={
-                        result.riskLevel === 'Low' ? 'default' :
-                        result.riskLevel === 'Medium' ? 'secondary' : 'destructive'
-                      }>
-                        {result.riskLevel} Risk - {result.summary}
-                      </Badge>
-                    </div>
-
-                    <Progress
-                      value={result.score}
-                      className="w-full h-2"
+              {/* Email Content with Highlights */}
+              {formData.body && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Eye className="h-5 w-5" />
+                      Content Analysis
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <EmailHighlighter
+                      content={formData.body}
+                      findings={result.findings}
                     />
-                  </div>
+                  </CardContent>
+                </Card>
+              )}
 
-                  {/* Header Analysis */}
-                  {result.headerSummary && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <AlertCircle className="h-4 w-4" />
-                        <h3 className="font-semibold">Email Authentication</h3>
-                      </div>
-                      <div className="p-3 bg-gray-50 rounded-lg">
-                        <div className="text-sm font-mono text-gray-700">
-                          {result.headerSummary}
-                        </div>
-                        <div className={`text-xs mt-1 ${
-                          result.headerAnalysis?.overall === 'good' ? 'text-green-600' :
-                          result.headerAnalysis?.overall === 'suspicious' ? 'text-yellow-600' : 'text-red-600'
-                        }`}>
-                          Overall: {result.headerAnalysis?.overall?.toUpperCase()} authentication
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ML Analysis */}
-                  {result.mlAnalysis?.used && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <Brain className="h-4 w-4" />
-                        <h3 className="font-semibold">ML Analysis (Beta)</h3>
-                      </div>
-                      <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                        <div className="text-sm">
-                          Machine learning confidence: <span className="font-medium">{Math.round(result.mlAnalysis.score * 100)}%</span>
-                        </div>
-                        <div className="text-xs text-gray-600 mt-1">
-                          This analysis uses a neural network trained on email patterns
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Findings */}
-                  <div>
-                    <h3 className="font-semibold mb-3">Findings</h3>
-                    {result.findings.length > 0 ? (
-                      <div className="space-y-2">
-                        {result.findings.map((finding: any) => (
-                          <div
-                            key={finding.id}
-                            className={`p-3 rounded-lg border ${
-                              finding.severity === 'high' ? 'border-red-200 bg-red-50' :
-                              finding.severity === 'medium' ? 'border-yellow-200 bg-yellow-50' :
-                              'border-gray-200 bg-gray-50'
-                            }`}
-                          >
-                            <div className="flex items-start gap-2">
-                              {finding.severity === 'high' && <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5" />}
-                              {finding.severity === 'medium' && <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5" />}
-                              {finding.severity === 'low' && <CheckCircle className="h-4 w-4 text-gray-600 mt-0.5" />}
-                              <div className="flex-1">
-                                <div className="text-sm font-medium">{finding.text}</div>
-                                <div className="text-xs text-gray-500 capitalize">{finding.severity} severity</div>
-                              </div>
+              {/* Detailed Findings */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5" />
+                    Detailed Findings
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {result.findings.length > 0 ? (
+                    <div className="space-y-2">
+                      {result.findings.map((finding: any) => (
+                        <div
+                          key={finding.id}
+                          className={`p-3 rounded-lg border ${
+                            finding.severity === 'high' ? 'border-red-200 bg-red-50' :
+                            finding.severity === 'medium' ? 'border-yellow-200 bg-yellow-50' :
+                            'border-gray-200 bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex items-start gap-2">
+                            {finding.severity === 'high' && <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5" />}
+                            {finding.severity === 'medium' && <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5" />}
+                            {finding.severity === 'low' && <CheckCircle className="h-4 w-4 text-gray-600 mt-0.5" />}
+                            <div className="flex-1">
+                              <div className="text-sm font-medium">{finding.text}</div>
+                              <div className="text-xs text-gray-500 capitalize">{finding.severity} severity • {finding.category}</div>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-8 text-gray-500">
-                        <CheckCircle className="h-12 w-12 mx-auto mb-2 text-green-600" />
-                        <p>No suspicious indicators found</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-12 text-gray-500">
-                  <AlertCircle className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-                  <p className="text-lg mb-2">Ready to Analyze</p>
-                  <p className="text-sm">Enter email content and click "Analyze Email" to get started</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <CheckCircle className="h-12 w-12 mx-auto mb-2 text-green-600" />
+                      <p>No suspicious indicators found</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          ) : (
+            <Card>
+              <CardContent className="text-center py-12">
+                <AlertCircle className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+                <p className="text-lg mb-2">Ready to Analyze</p>
+                <p className="text-sm text-gray-600">Enter email content and click "Analyze Email" to get started</p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>
