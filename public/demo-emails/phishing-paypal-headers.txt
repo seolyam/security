@@ -1,0 +1,35 @@
+Return-Path: <bounce@paypal.com>
+Received: from mx.paypal.com (mx.paypal.com [173.0.84.34])
+	by smtp.gmail.com with ESMTPS id x1si123456789
+	for <user@example.com>
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+	Wed, 25 Oct 2025 10:30:00 -0700 (PDT)
+Received-SPF: pass (google.com: domain of bounce@paypal.com designates 173.0.84.34 as permitted sender) client-ip=173.0.84.34;
+Authentication-Results: mx.paypal.com;
+	dkim=pass header.d=paypal.com header.s=pp header.b=ABC123DEF;
+	dmarc=pass (p=REJECT sp=REJECT) header.from=paypal.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=paypal.com; s=pp;
+	h=From:To:Subject:Date:Message-ID;
+	bh=ABC123DEF456789;
+	b=XYZ789ABC123DEF456789
+From: PayPal Security <security@paypal.com>
+To: user@example.com
+Subject: Security Alert: Verify Your Account Immediately
+Date: Wed, 25 Oct 2025 10:30:00 -0700
+Message-ID: <123456789@paypal.com>
+
+Dear PayPal Customer,
+
+We have detected unusual activity on your account. For your security, we have temporarily limited access to sensitive features.
+
+To restore full access, please verify your account information immediately by clicking the link below:
+
+https://www.paypal.com/verify?session=abc123&user=user@example.com
+
+If you do not verify within 24 hours, your account may be permanently suspended.
+
+This is an automated security notification. Please do not reply to this email.
+
+Thank you for using PayPal.
+PayPal Security Team

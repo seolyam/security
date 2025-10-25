@@ -1,6 +1,7 @@
 {
   "name": "phishsense",
   "version": "0.1.0",
+  "description": "Advanced phishing email detection tool with ML integration and header analysis",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -16,9 +17,12 @@
     "@radix-ui/react-progress": "^1.1.7",
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-toast": "^1.2.15",
+    "@tensorflow/tfjs": "^4.22.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dompurify": "^3.3.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.3",
     "lucide-react": "^0.548.0",
     "next": "16.0.0",
     "react": "19.2.0",
@@ -27,6 +31,7 @@
     "react-markdown": "^10.1.0",
     "rehype-highlight": "^7.0.2",
     "rehype-sanitize": "^6.0.0",
+    "swr": "^2.3.6",
     "tailwind-merge": "^3.3.1",
     "zod": "^4.1.12"
   },

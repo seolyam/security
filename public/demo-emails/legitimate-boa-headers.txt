@@ -1,0 +1,40 @@
+Return-Path: <no-reply@bankofamerica.com>
+Received: from mail.bankofamerica.com (mail.bankofamerica.com [171.159.228.34])
+	by smtp.gmail.com with ESMTPS id x2si987654321
+	for <user@example.com>
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+	Wed, 25 Oct 2025 09:15:00 -0700 (PDT)
+Received-SPF: pass (google.com: domain of no-reply@bankofamerica.com designates 171.159.228.34 as permitted sender) client-ip=171.159.228.34;
+Authentication-Results: mail.bankofamerica.com;
+	dkim=pass header.d=bankofamerica.com header.s=boa header.b=GHI789JKL;
+	dmarc=pass (p=QUARANTINE sp=QUARANTINE) header.from=bankofamerica.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=bankofamerica.com; s=boa;
+	h=From:To:Subject:Date:Message-ID:MIME-Version;
+	bh=GHI789JKL012345;
+	b=MNO345PQR678STU901234
+From: Bank of America <no-reply@bankofamerica.com>
+To: user@example.com
+Subject: Your Monthly Statement is Ready - October 2025
+Date: Wed, 25 Oct 2025 09:15:00 -0700
+Message-ID: <987654321@bankofamerica.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+
+Dear Valued Customer,
+
+Your monthly statement for account ending in ****1234 is now available for download.
+
+Statement Period: October 1, 2025 - October 31, 2025
+Account Balance: $2,450.67
+
+Please log in to your online banking account to view and download your statement:
+
+https://secure.bankofamerica.com/login
+
+If you have any questions about your account or recent transactions, please contact our customer service team at 1-800-432-1000.
+
+Thank you for banking with Bank of America. We appreciate your business.
+
+Sincerely,
+Bank of America Customer Service

@@ -1,3 +1,6 @@
+import { analyzeEmailHeaders, parseEmailHeaders, formatHeaderAnalysis } from './headerAnalysis';
+import { predictWithML } from './mlClassifier';
+
 export type Finding = {
   id: string;
   severity: 'low' | 'medium' | 'high';
@@ -54,15 +57,15 @@ function findKeywords(text: string): { word: string; index: number }[] {
   return found.sort((a, b) => a.index - b.index);
 }
 
-export function analyzeEmail(content: {
+export async function analyzeEmail(content: {
   subject?: string;
   body?: string;
   from?: string;
   to?: string;
   headers?: string;
-}) {
+}, useML: boolean = false) {
   const findings: Finding[] = [];
-  const { subject = '', body = '', from = '' } = content;
+  const { subject = '', body = '', from = '', headers = '' } = content;
   const fullText = `${subject} ${body}`.toLowerCase();
 
   // 1) Check for suspicious keywords
@@ -140,6 +143,94 @@ export function analyzeEmail(content: {
     });
   }
 
+  // 6) Analyze email headers if provided
+  let headerAnalysis: any = null;
+  if (headers) {
+    try {
+      const parsedHeaders = parseEmailHeaders(headers);
+      headerAnalysis = analyzeEmailHeaders(parsedHeaders);
+
+      // Add header-based findings
+      if (headerAnalysis.spf?.status === 'fail') {
+        findings.push({
+          id: 'spf-fail',
+          severity: 'high',
+          text: 'SPF authentication failed - email may be spoofed',
+          meta: { spf: headerAnalysis.spf }
+        });
+      }
+
+      if (headerAnalysis.dkim?.status === 'fail') {
+        findings.push({
+          id: 'dkim-fail',
+          severity: 'high',
+          text: 'DKIM signature verification failed',
+          meta: { dkim: headerAnalysis.dkim }
+        });
+      }
+
+      if (headerAnalysis.dmarc?.status === 'fail') {
+        findings.push({
+          id: 'dmarc-fail',
+          severity: 'medium',
+          text: 'DMARC policy violation detected',
+          meta: { dmarc: headerAnalysis.dmarc }
+        });
+      }
+
+      if (headerAnalysis.received.count > 5) {
+        findings.push({
+          id: 'too-many-hops',
+          severity: 'medium',
+          text: `Email passed through ${headerAnalysis.received.count} servers (unusual)`,
+          meta: { hops: headerAnalysis.received.count }
+        });
+      }
+
+      if (headerAnalysis.suspiciousHeaders && headerAnalysis.suspiciousHeaders.length > 0) {
+        headerAnalysis.suspiciousHeaders.forEach((suspicious: any) => {
+          findings.push({
+            id: `suspicious-header-${suspicious.header}`,
+            severity: 'low',
+            text: `Suspicious header detected: ${suspicious.header} - ${suspicious.reason}`,
+            meta: suspicious
+          });
+        });
+      }
+    } catch (error) {
+      console.error('Error analyzing headers:', error);
+    }
+  }
+
+  // 7) ML Analysis (optional)
+  let mlScore = 0;
+  let mlUsed = false;
+  if (useML) {
+    try {
+      mlScore = await predictWithML(fullText);
+      mlUsed = true;
+
+      // Add ML-based finding if confidence is high
+      if (mlScore > 0.7) {
+        findings.push({
+          id: 'ml-high-risk',
+          severity: 'high',
+          text: `ML analysis indicates high phishing probability (${Math.round(mlScore * 100)}%)`,
+          meta: { mlScore, mlUsed: true }
+        });
+      } else if (mlScore > 0.4) {
+        findings.push({
+          id: 'ml-medium-risk',
+          severity: 'medium',
+          text: `ML analysis indicates moderate phishing probability (${Math.round(mlScore * 100)}%)`,
+          meta: { mlScore, mlUsed: true }
+        });
+      }
+    } catch (error) {
+      console.error('Error with ML analysis:', error);
+    }
+  }
+
   // Calculate risk score (0-100, higher is more suspicious)
   let score = 0;
   findings.forEach(finding => {
@@ -156,6 +247,11 @@ export function analyzeEmail(content: {
     }
   });
 
+  // Incorporate ML score if available
+  if (mlUsed && mlScore > 0) {
+    score = Math.max(score, mlScore * 100);
+  }
+
   const riskLevel = score < 30 ? 'Low' : score < 70 ? 'Medium' : 'High';
 
   return {
@@ -163,5 +259,8 @@ export function analyzeEmail(content: {
     score: Math.min(100, score),
     riskLevel,
     summary: riskLevel === 'Low' ? 'Likely Safe' : riskLevel === 'Medium' ? 'Suspicious' : 'Phishing',
+    headerAnalysis,
+    mlAnalysis: mlUsed ? { score: mlScore, used: true } : { used: false },
+    headerSummary: headerAnalysis ? formatHeaderAnalysis(headerAnalysis) : undefined,
   };
 }
