@@ -10,6 +10,7 @@ import { Badge } from './ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Switch } from './ui/switch';
 import { FileText, Download, Palette, MessageSquare, List, Eye } from 'lucide-react';
+import { AnalysisResult } from '../lib/engines/scoreCombiner';
 import { generateEnhancedPDF, generateEnhancedJSON } from '../lib/enhancedExport';
 
 interface ReportCustomization {
@@ -33,14 +34,6 @@ interface EmailData {
   subject: string;
   body: string;
   analyzedAt: Date;
-}
-
-interface AnalysisResult {
-  score: number;
-  riskLevel: string;
-  findings: any[];
-  summary: string;
-  breakdown: any;
 }
 
 interface BatchAnalysis {
@@ -121,7 +114,7 @@ export default function ReportCustomization() {
           if (customization.format === 'pdf') {
             await generateEnhancedPDF(emailData, analysis.analysis as any);
           } else {
-            generateEnhancedJSON(emailData, analysis.analysis);
+            generateEnhancedJSON(emailData, analysis.analysis as AnalysisResult);
           }
 
           // Small delay between exports to avoid overwhelming the browser
