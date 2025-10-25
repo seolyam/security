@@ -39,6 +39,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Load user settings when user logs in
       if (session?.user) {
         try {
+          // Small delay to ensure session is properly established
+          await new Promise(resolve => setTimeout(resolve, 100));
+
           const settings = await SettingsService.getUserSettings(session.user.id);
           setUserSettings(settings);
         } catch (error) {

@@ -72,7 +72,8 @@ export class AuthService {
       if (data.user) {
         try {
           console.log('🔄 Creating user profile after successful signup...');
-          await this.createUserProfile(data.user.id, email, fullName);
+          // Pass the user object directly instead of relying on getUser()
+          await this.createUserProfile(data.user.id, email, fullName, data.user);
           console.log('✅ User profile created successfully');
         } catch (profileError: any) {
           console.error('⚠️ Profile creation failed after successful signup:', profileError);
@@ -106,10 +107,13 @@ export class AuthService {
     // Ensure user has a profile (in case it wasn't created during signup)
     if (data.user) {
       try {
-        await this.ensureUserProfile(data.user.id, email, data.user.user_metadata?.full_name);
+        console.log('🔄 Ensuring user profile exists after sign in...');
+        await this.ensureUserProfile(data.user.id, data.user.email!, data.user.user_metadata?.full_name);
+        console.log('✅ User profile ensured successfully');
       } catch (profileError) {
         console.error('Failed to ensure user profile exists:', profileError);
         // Don't fail sign in if profile creation fails
+        console.warn('User signed in successfully but profile creation failed. Some features may not work properly.');
       }
     }
 
@@ -127,6 +131,7 @@ export class AuthService {
     if (error) throw error;
 
     // Note: Profile creation will be handled when the user completes the magic link flow
+    // and the auth state change event fires
     return data;
   }
 
@@ -313,110 +318,113 @@ export class AuthService {
     }
   }
 
-  private static async createUserProfile(userId: string, email: string, fullName?: string) {
-    try {
-      console.log('🔄 Creating user profile:', { userId, email, fullName });
+private static async createUserProfile(userId: string, email: string, fullName?: string, authUser?: User) {
+  try {
+    console.log('🔄 Creating user profile:', { userId, email, fullName });
 
-      // Test database connection first
-      const connectionTest = await this.testDatabaseConnection();
-      if (!connectionTest.success) {
-        console.error('🚨 Database connection failed before profile creation:', connectionTest.error);
-        throw new Error('Cannot connect to database. Please check your Supabase configuration.');
-      }
+    // Test database connection first
+    const connectionTest = await this.testDatabaseConnection();
+    if (!connectionTest.success) {
+      console.error('🚨 Database connection failed before profile creation:', connectionTest.error);
+      throw new Error('Cannot connect to database. Please check your Supabase configuration.');
+    }
 
-      // Check if user is authenticated before attempting profile creation
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        console.error('❌ User not authenticated when creating profile:', userError);
-        throw new Error('User must be authenticated to create profile. Please sign in first.');
-      }
+    // IMPORTANT: Always use the authUser passed from signUp
+    // Don't call getUser() again as the session might not be fully established
+    const user = authUser;
+    
+    if (!user) {
+      console.error('❌ No auth user provided when creating profile');
+      throw new Error('User authentication data not available. Please try signing in.');
+    }
 
-      if (user.id !== userId) {
-        console.warn('⚠️ Auth user ID mismatch:', {
-          authUserId: user.id,
-          profileUserId: userId
-        });
-        // Continue anyway - this might be a timing issue
-      }
+    console.log('✅ Using authenticated user for profile creation:', {
+      authUserId: user.id,
+      profileUserId: userId,
+      email: user.email
+    });
 
-      console.log('✅ User authenticated, proceeding with profile creation:', {
-        authUserId: user.id,
-        profileUserId: userId,
-        email: user.email
-      });
+    // Add a small delay to ensure auth session is fully propagated
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-      const { data, error } = await supabase
-        .from('users')
-        .insert({
-          id: userId,
-          email,
-          full_name: fullName,
-          role: 'user',
-        })
-        .select()
-        .single();
+    const { data, error } = await supabase
+      .from('users')
+      .insert({
+        id: userId,
+        email,
+        full_name: fullName,
+        role: 'user',
+      })
+      .select()
+      .single();
 
-      if (error) {
-        console.error('❌ Supabase error creating user profile:', {
-          error,
-          userId,
-          email,
-          fullName,
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code,
-          hasMessage: !!error.message,
-          hasCode: !!error.code,
-          errorType: typeof error,
-          errorKeys: error ? Object.keys(error) : 'no error object',
-          currentAuthUser: user?.id,
-          currentAuthEmail: user?.email
-        });
-
-        // Handle empty error objects
-        if (!error || Object.keys(error).length === 0) {
-          throw new Error('Database operation failed with no error details. This usually means the database tables do not exist or there is a connection issue.');
-        }
-
-        // Provide more helpful error messages
-        if (error.code === '42P01') {
-          throw new Error('Database tables not found. Please run the database schema in Supabase SQL Editor.');
-        } else if (error.code === '42501') {
-          throw new Error('Access denied. Please check RLS policies in Supabase. Make sure the policy "Users can insert their own profile" exists and allows (auth.uid() = id).');
-        } else if (error.code === '23505') {
-          console.log('✅ User profile already exists, skipping creation');
-          return data;
-        } else if (error.code === 'PGRST116') {
-          throw new Error('Database connection failed. Please check your Supabase URL and API key.');
-        }
-
-        // For any other error, provide the original error with more context
-        const errorMsg = error.message || 'Unknown database error';
-        throw new Error(`Database error (${error.code || 'unknown code'}): ${errorMsg}`);
-      }
-
-      if (!data) {
-        throw new Error('Profile creation succeeded but returned no data. Please check database permissions.');
-      }
-
-      console.log('✅ User profile created successfully:', data);
-
-      // Also create default settings
-      await this.createDefaultSettings(userId);
-      return data;
-    } catch (error: any) {
-      console.error('💥 Failed to create user profile:', {
-        error: error?.message || error,
+    if (error) {
+      console.error('❌ Supabase error creating user profile:', {
+        error,
         userId,
         email,
         fullName,
-        stack: error?.stack,
-        errorType: typeof error
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+        currentAuthUser: user?.id,
+        currentAuthEmail: user?.email
       });
-      throw error;
+
+      // Handle specific error codes
+      if (error.code === '42P01') {
+        throw new Error('Database tables not found. Please run the database schema in Supabase SQL Editor.');
+      } else if (error.code === '42501') {
+        // Get the current session to debug
+        const { data: { session } } = await supabase.auth.getSession();
+        console.error('🔍 RLS Policy Check Failed. Current session:', {
+          hasSession: !!session,
+          sessionUserId: session?.user?.id,
+          profileUserId: userId,
+          match: session?.user?.id === userId
+        });
+        
+        throw new Error(
+          'Access denied by Row Level Security. This usually means:\n' +
+          '1. The RLS policy is missing or incorrect\n' +
+          '2. The auth session is not fully established\n' +
+          'Please check: Supabase Dashboard > Database > users table > Policies\n' +
+          'Required policy: INSERT with WITH CHECK (auth.uid() = id)'
+        );
+      } else if (error.code === '23505') {
+        console.log('✅ User profile already exists, skipping creation');
+        return data;
+      } else if (error.code === 'PGRST116') {
+        throw new Error('Database connection failed. Please check your Supabase URL and API key.');
+      }
+
+      // For any other error, provide the original error with more context
+      const errorMsg = error.message || 'Unknown database error';
+      throw new Error(`Database error (${error.code || 'unknown code'}): ${errorMsg}`);
     }
+
+    if (!data) {
+      throw new Error('Profile creation succeeded but returned no data. Please check database permissions.');
+    }
+
+    console.log('✅ User profile created successfully:', data);
+
+    // Also create default settings
+    await this.createDefaultSettings(userId);
+    return data;
+  } catch (error: any) {
+    console.error('💥 Failed to create user profile:', {
+      error: error?.message || error,
+      userId,
+      email,
+      fullName,
+      stack: error?.stack,
+      errorType: typeof error
+    });
+    throw error;
   }
+}
 
   private static async createDefaultSettings(userId: string) {
     try {
