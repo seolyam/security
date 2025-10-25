@@ -1,6 +1,8 @@
 "use client"
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { useAuth } from './authProvider';
+import { SettingsService } from './services/settingsService';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -8,6 +10,7 @@ interface ThemeContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
   resolvedTheme: 'light' | 'dark';
+  userSettings: any;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -15,14 +18,34 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>('system');
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
+  const [userSettings, setUserSettings] = useState<any>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
-    // Load theme from localStorage
-    const storedTheme = localStorage.getItem('phishingsense_theme') as Theme;
-    if (storedTheme && ['light', 'dark', 'system'].includes(storedTheme)) {
-      setTheme(storedTheme);
-    }
-  }, []);
+    // Load theme from localStorage (fallback) or user settings (cloud)
+    const loadInitialTheme = async () => {
+      if (user) {
+        try {
+          const settings = await SettingsService.getUserSettings(user.id);
+          if (settings) {
+            setUserSettings(settings);
+            setTheme(settings.theme || 'system');
+            return;
+          }
+        } catch (error) {
+          console.error('Error loading user settings:', error);
+        }
+      }
+
+      // Fallback to localStorage
+      const storedTheme = localStorage.getItem('phishingsense_theme') as Theme;
+      if (storedTheme && ['light', 'dark', 'system'].includes(storedTheme)) {
+        setTheme(storedTheme);
+      }
+    };
+
+    loadInitialTheme();
+  }, [user]);
 
   useEffect(() => {
     const updateResolvedTheme = () => {
@@ -55,13 +78,31 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }, [theme]);
 
-  const handleSetTheme = (newTheme: Theme) => {
+  const handleSetTheme = async (newTheme: Theme) => {
     setTheme(newTheme);
+
+    // Save to cloud if user is authenticated
+    if (user) {
+      try {
+        await SettingsService.updateUserSettings(user.id, { theme: newTheme });
+        // Update local state
+        setUserSettings((prev: any) => ({ ...prev, theme: newTheme }));
+      } catch (error) {
+        console.error('Error saving theme to cloud:', error);
+      }
+    }
+
+    // Fallback to localStorage for guests or as backup
     localStorage.setItem('phishingsense_theme', newTheme);
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme: handleSetTheme, resolvedTheme }}>
+    <ThemeContext.Provider value={{
+      theme,
+      setTheme: handleSetTheme,
+      resolvedTheme,
+      userSettings
+    }}>
       {children}
     </ThemeContext.Provider>
   );

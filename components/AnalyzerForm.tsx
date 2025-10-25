@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { analyzeEmailV2 } from '../lib/ruleEngine';
-import { saveAnalysisToHistory, AnalysisHistoryItem } from '../lib/historyUtils';
 import { generateEnhancedJSON, generateEnhancedPDF } from '../lib/enhancedExport';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -12,8 +11,6 @@ import { Textarea } from './ui/textarea';
 import { Progress } from './ui/progress';
 import { Badge } from './ui/badge';
 import { AlertTriangle, CheckCircle, AlertCircle, Download, FileText, History, Eye, Brain, Settings, ChevronDown, ChevronUp } from 'lucide-react';
-import EmailHighlighter from './EmailHighlighter';
-import HistoryPanel from './HistoryPanel';
 import ConfidenceGauge from './ConfidenceGauge';
 import LabelingInterface from './LabelingInterface';
 import ExplanationModal from './ExplanationModal';
@@ -21,6 +18,9 @@ import RiskRadarChart from './RiskRadarChart';
 import EnhancedEmailHighlighter from './EnhancedEmailHighlighter';
 import SafetyTipsCarousel from './SafetyTipsCarousel';
 import PhishingQuiz from './PhishingQuiz';
+import CloudHistoryPanel from './CloudHistoryPanel';
+import { useAuth } from '../lib/authProvider';
+import { ScanService } from '../lib/services/scanService';
 import { useTheme } from '../lib/themeProvider';
 
 export default function AnalyzerForm() {
@@ -39,6 +39,7 @@ export default function AnalyzerForm() {
   const [showVisualization, setShowVisualization] = useState(true);
   const [explanationModal, setExplanationModal] = useState<{ isOpen: boolean; finding?: any }>({ isOpen: false });
   const { theme } = useTheme();
+  const { user } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,12 +52,24 @@ export default function AnalyzerForm() {
       });
       setResult(analysis);
 
-      // Save to history
-      const emailData = {
-        ...formData,
-        analyzedAt: new Date(),
-      };
-      saveAnalysisToHistory(emailData, analysis);
+      // Save to cloud if user is authenticated
+      if (user) {
+        try {
+          await ScanService.createScan(user.id, {
+            subject: formData.subject,
+            body: formData.body,
+            fromEmail: formData.from,
+            riskScore: analysis.score,
+            verdict: analysis.score >= 70 ? 'phishing' : analysis.score >= 30 ? 'suspicious' : 'safe',
+            keywords: analysis.findings.map((f: any) => f.text),
+            links: [], // Could extract URLs from content
+            mlConfidence: analysis.score / 100,
+          });
+        } catch (error) {
+          console.error('Error saving to cloud:', error);
+          // Don't fail the analysis if cloud save fails
+        }
+      }
     } catch (error) {
       console.error('Analysis failed:', error);
     } finally {
@@ -73,7 +86,7 @@ export default function AnalyzerForm() {
     setResult(null);
   };
 
-  const handleLoadAnalysis = (item: AnalysisHistoryItem) => {
+  const handleLoadAnalysis = (item: any) => {
     setFormData({
       from: item.email.from,
       subject: item.email.subject,
@@ -258,7 +271,7 @@ export default function AnalyzerForm() {
 
           {/* History Panel */}
           {showHistory && (
-            <HistoryPanel
+            <CloudHistoryPanel
               onLoadAnalysis={handleLoadAnalysis}
               className="max-h-96 dark:bg-gray-800 dark:border-gray-700"
             />

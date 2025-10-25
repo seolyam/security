@@ -1,53 +1,29 @@
-# PhishingSense v2.0
+# PhishingSense v3.0
 
-**Advanced AI-Powered Email Security Analysis Platform**
+**Cloud-Enabled AI-Powered Email Security Analysis Platform**
 
-PhishingSense is a comprehensive phishing email detection system that combines rule-based heuristics, machine learning, and advanced email authentication analysis to provide enterprise-grade email security insights.
+PhishingSense is a comprehensive phishing email detection system that combines rule-based heuristics, machine learning, and advanced email authentication analysis to provide enterprise-grade email security insights. Now with **Supabase integration** for multi-user support, cloud synchronization, and real-time analytics.
 
-![Version 2.0](https://img.shields.io/badge/version-2.0-blue)
+![Version 3.0](https://img.shields.io/badge/version-3.0-blue)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
 ![TensorFlow.js](https://img.shields.io/badge/TensorFlow.js-ML-orange)
+![Supabase](https://img.shields.io/badge/Supabase-Cloud-green)
 
-## ✨ What's New in v2.0
+## ✨ What's New in v3.0
 
-### 🧠 **Hybrid Detection Engine**
-- **Modular Architecture**: Separate engines for rules, ML, headers, and scoring
-- **Weighted Analysis**: 25% keywords, 25% headers, 40% ML, 10% misc factors
-- **Real-time Processing**: Sub-second analysis with detailed breakdowns
+### ☁️ **Supabase Integration**
+- **User Authentication**: Secure signup/login with email verification
+- **Cloud Storage**: All scans, settings, and history stored in PostgreSQL
+- **Multi-Device Sync**: Access your data from any device
+- **Real-time Analytics**: Live dashboard with cloud-powered insights
+- **Dynamic Rules**: Update detection patterns from the database
 
-### 📊 **Advanced Visualization**
-- **Interactive Radar Charts**: Visual breakdown of analysis contributions
-- **Enhanced Email Highlighter**: Hover effects and category-based highlighting
-- **Content Comparison**: Side-by-side email analysis for learning
-- **Responsive Dashboard**: Professional sidebar navigation with mobile support
-
-### 🎓 **Educational Mode**
-- **Explain Buttons**: Detailed explanations for each detection finding
-- **Safety Tips Carousel**: Rotating cybersecurity tips and best practices
-- **Interactive Quiz**: Phishing awareness training with scoring
-- **Learning Interface**: Educational content integrated throughout
-
-### 🤖 **AI Learning & Training**
-- **User Labeling System**: Mark emails as phishing/safe for training
-- **Local Model Retraining**: Personalized ML models using your data
-- **Training Interface**: Visual feedback during model training
-- **Offline Learning**: All training happens locally in your browser
-
-### 📈 **Analytics Dashboard**
-- **Usage Statistics**: Track your analysis patterns and trends
-- **Risk Distribution**: Visual charts showing detection results
-- **Performance Metrics**: Analysis speed and accuracy tracking
-- **Historical Trends**: Weekly and monthly activity summaries
-
-### 🔧 **Rule Customization**
-- **Custom Keywords**: Add your own detection patterns
-- **Sensitivity Control**: Adjust detection thresholds
-- **Category Management**: Organize and weight different rule types
-- **Import/Export**: Backup and share custom rule sets
-
-### 📋 **Enhanced Reporting**
-- **Theme Support**: Light, dark, minimal, and professional themes
+### 🔐 **Enhanced Security**
+- **Row Level Security**: Database-level access control
+- **Secure API**: All data operations through authenticated endpoints
+- **Privacy Controls**: Granular privacy settings and data management
+- **Session Management**: Persistent authentication across browser sessions
 - **Custom Branding**: Add company logos and analyst information
 - **Batch Export**: Export multiple analyses simultaneously
 - **Digital Signatures**: Authenticated reports with unique hashes
@@ -137,13 +113,71 @@ lib/
 - **Document Generation**: jsPDF + html2canvas
 - **Icons**: Lucide React
 - **State Management**: React hooks + localStorage
+- **Backend**: Supabase (PostgreSQL + Auth + RLS)
 - **Build System**: Next.js with TypeScript
 
-## 🚀 Getting Started
+## ⚙️ Supabase Setup
+
+### 1. Environment Configuration
+
+Create a `.env.local` file in the project root:
+
+```bash
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=https://saxmpvvgjkidotpqsaht.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNheG1wdnZnamtpZG90cHFzYWh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzNjQ2NTAsImV4cCI6MjA3Njk0MDY1MH0.Z05qOMiT_OnNLD3WwNxd-gTEwg1LRSwHDoYQOpq7vEY
+```
+
+### 2. Database Setup
+
+1. **Go to your Supabase project**: https://supabase.com/dashboard/project/saxmpvvgjkidotpqsaht
+2. **Navigate to SQL Editor**
+3. **Copy the entire contents** of `supabase-schema.sql`
+4. **Run the SQL script** to create all tables and security policies
+
+**If you get "relation already exists" errors:**
+- The schema has been partially applied before
+- Try running the schema again (it uses `CREATE TABLE IF NOT EXISTS`)
+- Or use the reset script: `./reset-database.sh`
+
+**If you encounter database errors, check the comprehensive error resolution guide:**
+📖 **[Error Resolution Guide](documentation/error-resolution.md)** - Detailed troubleshooting for all database issues
+
+### Enhanced Error Diagnostics
+
+The application now includes advanced error handling and debugging tools:
+
+- 🔍 **Browser Console Debug Tool**: Run `await AuthService.debugConnection()` in browser console
+- 📊 **Enhanced Logging**: Detailed error codes and actionable solutions
+- 🛠️ **Connection Testing**: Automatic database connectivity validation
+- 🎯 **Specific Guidance**: Tailored solutions for each error type
+
+### 3. Quick Setup Script
+
+Alternatively, run the setup script:
+
+```bash
+chmod +x setup-supabase.sh
+./setup-supabase.sh
+```
+
+This will verify your configuration and provide step-by-step instructions.
+
+### Why pnpm?
+
+This project recommends **pnpm** as the package manager for several reasons:
+
+- **🚀 Faster Installation**: pnpm is significantly faster than npm and yarn
+- **💾 Space Efficient**: Uses a content-addressable filesystem, saving disk space
+- **🔒 Strict**: Prevents security issues by avoiding phantom dependencies
+- **⚡ Parallel**: Installs packages in parallel for better performance
+- **🔄 Monorepo Ready**: Excellent support for monorepos (if you expand the project)
+
+You can still use npm or yarn if you prefer - all package managers are supported!
 
 ### Prerequisites
 - Node.js 18+
-- npm or yarn
+- pnpm (recommended) or npm/yarn
 
 ### Installation
 
@@ -151,17 +185,35 @@ lib/
 ```bash
 git clone <repository-url>
 cd phishingsense
+
+# Using pnpm (recommended)
+pnpm install
+
+# Or using npm
 npm install
+
+# Or using yarn
+yarn install
 ```
 
 2. **Development**:
 ```bash
+# Using pnpm (recommended)
+pnpm dev
+
+# Or using npm
 npm run dev
+
 # Visit http://localhost:3000
 ```
 
 3. **Production Build**:
 ```bash
+# Using pnpm (recommended)
+pnpm build
+pnpm start
+
+# Or using npm
 npm run build
 npm start
 ```
@@ -250,18 +302,41 @@ Add your own detection patterns:
 
 ### Data Protection
 - **Client-Side Processing**: All analysis happens in your browser
-- **No Data Transmission**: Email content never leaves your device
-- **Local Storage Only**: Analysis history stored locally in browser
+- **Secure Cloud Storage**: Authenticated data storage with Row Level Security (RLS)
+- **Privacy Controls**: Choose between local-only or cloud-synced data
+- **Data Ownership**: Full control over your stored analyses and settings
 - **Private Mode**: Option to disable all data storage
-- **Data Export**: Full control over your data
 
 ### Security Features
 - **Input Sanitization**: DOMPurify integration for content cleaning
 - **Digital Signatures**: Report authenticity verification
 - **Encrypted Storage**: Sensitive data encrypted in localStorage
+- **Row Level Security**: Database-level access control in Supabase
 - **No Tracking**: No analytics or external API calls without consent
 
+### Authentication & Access
+- **Secure Login**: Email/password and magic link authentication
+- **Session Management**: Persistent authenticated sessions
+- **Multi-Device Sync**: Access your data from any device
+- **Account Security**: Password reset and account management
+
 ## 🧪 Testing
+
+```bash
+# Run development server
+pnpm dev
+
+# Build for production
+pnpm build
+
+# Run linting
+pnpm lint
+
+# Future: Add test suite
+pnpm test
+```
+
+### Alternative with npm:
 
 ```bash
 # Run development server
@@ -315,15 +390,17 @@ phishingsense/
 │   │   ├── card.tsx       # Content containers
 │   │   ├── input.tsx      # Form inputs
 │   │   └── [more UI components]
+│   ├── AuthForm.tsx      # Authentication interface
+│   ├── ProtectedRoute.tsx # Route protection wrapper
 │   ├── Dashboard.tsx     # Main navigation and layout
 │   ├── AnalyzerForm.tsx  # Enhanced analysis interface
+│   ├── CloudHistoryPanel.tsx # Cloud-based history management
+│   ├── CloudAnalyticsDashboard.tsx # Cloud-powered analytics
 │   ├── ConfidenceGauge.tsx # Circular risk visualization
 │   ├── EmailHighlighter.tsx # Content highlighting
-│   ├── HistoryPanel.tsx   # Analysis history management
 │   ├── LabelingInterface.tsx # AI training feedback
 │   ├── TrainingInterface.tsx # Model retraining UI
 │   ├── RuleCustomization.tsx # Custom rule management
-│   ├── AnalyticsDashboard.tsx # Usage statistics
 │   ├── DemoEmailGenerator.tsx # Sample email loading
 │   ├── EmailComparison.tsx # Side-by-side comparison
 │   ├── SafetyTipsCarousel.tsx # Educational content
@@ -333,11 +410,20 @@ phishingsense/
 │   ├── PrivacyControls.tsx # Data and privacy settings
 │   └── [more feature components]
 ├── lib/                  # Core business logic
+│   ├── services/         # Cloud service integrations
+│   │   ├── authService.ts    # Supabase authentication
+│   │   ├── scanService.ts    # Email scan cloud storage
+│   │   ├── settingsService.ts # User settings sync
+│   │   ├── patternService.ts # Dynamic rule updates
+│   │   └── reportService.ts  # Report management
 │   ├── engines/          # Modular analysis engines
 │   │   ├── ruleEngine.ts     # Rule-based detection
 │   │   ├── mlEngine.ts       # ML/TensorFlow.js integration
 │   │   ├── headerEngine.ts   # SPF/DKIM/DMARC validation
 │   │   └── scoreCombiner.ts  # Weighted scoring orchestration
+│   ├── supabase.ts       # Supabase client configuration
+│   ├── authProvider.tsx   # Authentication context provider
+│   ├── themeProvider.tsx  # Theme management (cloud-synced)
 │   ├── data/
 │   │   └── patterns.json     # Phishing patterns & templates
 │   ├── offlineLearning.ts    # User labeling and training
@@ -346,7 +432,6 @@ phishingsense/
 │   ├── enhancedExport.ts     # Professional PDF/JSON reports
 │   ├── headerAnalysis.ts     # Email header parsing utilities
 │   ├── historyUtils.ts       # Local storage management
-│   ├── themeProvider.tsx     # Dark mode and theming
 │   └── utils.ts              # Utility functions
 └── public/
     ├── demo-emails/          # Sample emails for testing
