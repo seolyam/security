@@ -1,0 +1,21 @@
+From: security@apple.com
+Subject: Security Alert: Unusual Login Attempt Detected
+To: user@example.com
+
+Hello,
+
+We detected a login attempt to your Apple ID from an unrecognized device in New York, NY.
+
+If this was you, no further action is needed.
+
+If this was not you, please secure your account immediately:
+
+1. Change your Apple ID password
+2. Review your recent account activity
+3. Enable two-factor authentication
+
+Visit https://appleid.apple.com to secure your account now.
+
+This is an automated security notification from Apple.
+
+Apple Security Team

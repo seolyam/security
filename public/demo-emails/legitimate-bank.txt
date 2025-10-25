@@ -1,0 +1,18 @@
+From: no-reply@bankofamerica.com
+Subject: Your Monthly Bank Statement is Ready
+To: user@example.com
+
+Dear Valued Customer,
+
+Your monthly statement for account ending in ****1234 is now available for download.
+
+Please log in to your online banking account to view and download your statement:
+
+https://secure.bankofamerica.com/login
+
+If you have any questions about your account or recent transactions, please contact our customer service team at 1-800-432-1000.
+
+Thank you for banking with Bank of America.
+
+Sincerely,
+Bank of America Customer Service
