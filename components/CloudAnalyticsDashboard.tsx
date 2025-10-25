@@ -20,12 +20,22 @@ interface AnalyticsData {
   weeklyActivity: { day: string; analyses: number }[];
 }
 
+interface PatternStats {
+  total: number;
+  bySeverity: {
+    high: number;
+    medium: number;
+    low: number;
+  };
+  byCategory: Record<string, number>;
+}
+
 export default function CloudAnalyticsDashboard() {
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('30d');
   const [userStats, setUserStats] = useState<any>(null);
-  const [patternStats, setPatternStats] = useState<any>(null);
+  const [patternStats, setPatternStats] = useState<PatternStats | null>(null);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -406,7 +416,7 @@ export default function CloudAnalyticsDashboard() {
       </Card>
 
       {/* Pattern Statistics */}
-      {patternStats && (
+      {patternStats && Object.keys(patternStats.byCategory).length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg dark:text-white">Detection Pattern Overview</CardTitle>
@@ -438,7 +448,7 @@ export default function CloudAnalyticsDashboard() {
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(patternStats.byCategory).map(([category, count]) => (
                     <Badge key={category} variant="secondary" className="dark:border-gray-600 dark:text-gray-300">
-                      {category}: {count}
+                      {String(category)}: {count}
                     </Badge>
                   ))}
                 </div>

@@ -1,176 +1,118 @@
-## Error Type
-Console Error
-
-## Error Message
-❌ Supabase error creating user profile: {}
-  - Detailed error object inspection (checks if error is empty, has codes, etc.)
-  - Enhanced console logging with emojis for easy identification
-  - Database connection testing before operations
-
-
-    at createUserProfile (lib/services/authService.ts:234:17)
-
-## Code Frame
-  232 |
-  233 |       if (error) {
-> 234 |         console.error('❌ Supabase error creating user profile:', {
-      |                 ^
-  235 |           error,
-  236 |           userId,
-  237 |           email,
-
-Next.js version: 16.0.0 (Turbopack)
-
-## ✅ **ENHANCED: Comprehensive Database Connection Error Resolution**
-
-I've significantly improved the error handling and diagnostics for the Supabase database connection issues. Here's what's been fixed and how to troubleshoot:
-
-### 🔧 **Enhanced Error Diagnostics Applied:**
-
-1. **✅ Improved Error Logging**
-   - Detailed error object inspection (checks if error is empty, has codes, etc.)
-   - Enhanced console logging with emojis for easy identification
-   - Database connection testing before operations
-
-2. **✅ Better Error Messages**
-   - User-friendly error messages instead of empty objects
-   - Specific guidance based on error codes
-   - Actionable next steps for each error type
-
-3. **✅ Debug Tools Added**
-   - `AuthService.debugConnection()` - Browser console debugging
-   - Enhanced database connection testing
-   - Automatic error code detection and resolution suggestions
-
-### 📊 **Current Error Analysis:**
-
-#### **Error 1 & 2: Empty Error Objects `{}`**
-**Problem:** Database operations failing silently with empty error objects
-**Solution:** Enhanced error detection now provides detailed diagnostics
-
-#### **Error 3: "Access denied. Please check RLS policies in Supabase."**
-**Problem:** Row Level Security policies blocking operations (Error code 42501)
-**Solution:** RLS policies need to be configured in Supabase
-
-### 🚀 **How to Debug:**
-
-#### **Option 1: Use the Browser Console Debug Tool**
-1. Open your app in browser (http://localhost:3000)
-2. Open Developer Tools (F12)
-3. Go to Console tab
-4. Run this command:
-   ```javascript
-   await AuthService.debugConnection()
-   ```
-
-#### **Option 2: Check Enhanced Console Logs**
-The new logging will show:
-```
-🔍 Testing Supabase database connection...
-❌ Database query test failed: {
-  error: {...},
-  message: "relation \"public.users\" does not exist",
-  code: "42P01",
-  hasMessage: true,
-  hasCode: true,
-  errorKeys: ["message", "details", "hint", "code"]
-}
-💡 Solution: Copy and run the supabase-schema.sql in Supabase SQL Editor
-```
-
-#### **Option 3: Manual Database Check**
-1. Go to: https://supabase.com/dashboard/project/saxmpvvgjkidotpqsaht
-2. Check if tables exist in the "Table Editor"
-3. Check RLS policies in "Database" → "Policies"
-
-### 🔍 **Error Code Reference:**
-
-| Error Code | Meaning | Solution |
-|------------|---------|----------|
-| `42P01` | Table doesn't exist | Run database schema in Supabase SQL Editor |
-| `42501` | Access denied (RLS) | Check Row Level Security policies |
-| `23505` | Duplicate entry | Data already exists (usually OK) |
-| `PGRST116` | Connection failed | Check Supabase URL and API key |
-
-### 📋 **Step-by-Step Resolution:**
-
-1. **Test Connection First:**
-   ```bash
-   # In browser console:
-   await AuthService.debugConnection()
-   ```
-
-2. **Apply Database Schema:**
-   - Go to Supabase SQL Editor
-   - Copy `supabase-schema.sql` content
-   - Run the SQL (handles existing tables safely)
-
-3. **Verify Configuration:**
-   ```bash
-   # Check .env.local exists with correct values
-   cat .env.local
-   ```
-
-4. **Restart Development Server:**
-   ```bash
-   pkill -f "next dev" && pnpm dev
-   ```
-
-5. **Test Signup:**
-   - Try creating a new account
-   - Check console for detailed error logs
-   - Look for specific error codes and solutions
-
-### 🎯 **Expected Results:**
-
-After fixes:
-- ✅ Detailed error messages instead of empty objects
-- ✅ Specific guidance for each error type
-- ✅ Database operations working properly
-
-**The enhanced error handling will now provide clear, actionable error messages instead of empty objects!** 🎉
-
-**Next Step:** Try the browser console debug tool and apply the database schema - you should see much more detailed error information.
-
-## Error Type
-Console Error
-
-## Error Message
-💥 Failed to create user profile: {}
-  - Detailed error object inspection (checks if error is empty, has codes, etc.)
-  - Enhanced console logging with emojis for easy identification
-  - Database connection testing before operations
-
-
-    at createUserProfile (lib/services/authService.ts:264:15)
-
-## Code Frame
-  262 |       return data;
-  263 |     } catch (error: any) {
-> 264 |       console.error('💥 Failed to create user profile:', {
-      |               ^
-  265 |         error: error?.message || error,
-  266 |         userId,
-  267 |         email,
-
-Next.js version: 16.0.0 (Turbopack)
-
-## Error Type
-Console Error
-
-## Error Message
-Access denied. Please check RLS policies in Supabase.
-
-
-    at createUserProfile (lib/services/authService.ts:249:17)
-
-## Code Frame
-  247 |           throw new Error('Database tables not found. Please run the database schema in Supabase SQL Editor.');
-  248 |         } else if (error.code === '42501') {
-> 249 |           throw new Error('Access denied. Please check RLS policies in Supabase.');
-      |                 ^
-  250 |         } else if (error.code === '23505') {
-  251 |           console.log('✅ User profile already exists, skipping creation');
-  252 |           return data;
-
-Next.js version: 16.0.0 (Turbopack)
+18:48:21.150 Running build in Washington, D.C., USA (East) – iad1
+18:48:21.150 Build machine configuration: 2 cores, 8 GB
+18:48:21.166 Cloning github.com/seolyam/security (Branch: main, Commit: da47744)
+18:48:21.470 Cloning completed: 303.000ms
+18:48:22.756 Skipping build cache since Package Manager changed from "npm" to "pnpm"
+18:48:23.129 Running "vercel build"
+18:48:23.550 Vercel CLI 48.1.6
+18:48:23.979 Detected `pnpm-lock.yaml` 9 which may be generated by pnpm@9.x or pnpm@10.x
+18:48:23.980 Using pnpm@10.x based on project creation date
+18:48:23.980 To use pnpm@9.x, manually opt in using corepack (https://vercel.com/docs/deployments/configure-a-build#corepack)
+18:48:24.007 Installing dependencies...
+18:48:24.814 Lockfile is up to date, resolution step is skipped
+18:48:24.947 Progress: resolved 1, reused 0, downloaded 0, added 0
+18:48:25.010 Packages: +615
+18:48:25.011 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+18:48:25.949 Progress: resolved 615, reused 0, downloaded 68, added 18
+18:48:26.949 Progress: resolved 615, reused 0, downloaded 91, added 26
+18:48:27.953 Progress: resolved 615, reused 0, downloaded 92, added 26
+18:48:28.949 Progress: resolved 615, reused 0, downloaded 149, added 46
+18:48:29.951 Progress: resolved 615, reused 0, downloaded 161, added 50
+18:48:30.953 Progress: resolved 615, reused 0, downloaded 165, added 50
+18:48:31.960 Progress: resolved 615, reused 0, downloaded 195, added 60
+18:48:32.961 Progress: resolved 615, reused 0, downloaded 222, added 70
+18:48:33.962 Progress: resolved 615, reused 0, downloaded 223, added 70
+18:48:34.962 Progress: resolved 615, reused 0, downloaded 286, added 93
+18:48:35.962 Progress: resolved 615, reused 0, downloaded 341, added 109
+18:48:36.962 Progress: resolved 615, reused 0, downloaded 448, added 147
+18:48:37.963 Progress: resolved 615, reused 0, downloaded 489, added 160
+18:48:38.963 Progress: resolved 615, reused 0, downloaded 507, added 165
+18:48:39.963 Progress: resolved 615, reused 0, downloaded 550, added 177
+18:48:40.964 Progress: resolved 615, reused 0, downloaded 615, added 223
+18:48:41.964 Progress: resolved 615, reused 0, downloaded 615, added 300
+18:48:42.966 Progress: resolved 615, reused 0, downloaded 615, added 538
+18:48:43.482 Progress: resolved 615, reused 0, downloaded 615, added 615, done
+18:48:43.861 
+18:48:43.862 dependencies:
+18:48:43.862 + @hookform/resolvers 5.2.2
+18:48:43.862 + @radix-ui/react-dialog 1.1.15
+18:48:43.862 + @radix-ui/react-dropdown-menu 2.1.16
+18:48:43.862 + @radix-ui/react-label 2.1.7
+18:48:43.862 + @radix-ui/react-progress 1.1.7
+18:48:43.862 + @radix-ui/react-select 2.2.6
+18:48:43.862 + @radix-ui/react-slot 1.2.3
+18:48:43.863 + @radix-ui/react-switch 1.2.6
+18:48:43.863 + @radix-ui/react-toast 1.2.15
+18:48:43.863 + @supabase/auth-ui-react 0.4.7
+18:48:43.863 + @supabase/auth-ui-shared 0.1.8
+18:48:43.863 + @supabase/supabase-js 2.76.1
+18:48:43.863 + @tensorflow/tfjs 4.22.0
+18:48:43.863 + class-variance-authority 0.7.1
+18:48:43.863 + clsx 2.1.1
+18:48:43.863 + dompurify 3.3.0
+18:48:43.863 + html2canvas 1.4.1
+18:48:43.863 + jspdf 3.0.3
+18:48:43.863 + lucide-react 0.548.0
+18:48:43.863 + next 16.0.0
+18:48:43.863 + react 19.2.0
+18:48:43.863 + react-dom 19.2.0
+18:48:43.864 + react-hook-form 7.65.0
+18:48:43.864 + react-markdown 10.1.0
+18:48:43.864 + recharts 3.3.0
+18:48:43.864 + rehype-highlight 7.0.2
+18:48:43.864 + rehype-sanitize 6.0.0
+18:48:43.864 + swr 2.3.6
+18:48:43.864 + tailwind-merge 3.3.1
+18:48:43.864 + zod 4.1.12
+18:48:43.864 
+18:48:43.864 devDependencies:
+18:48:43.864 + @tailwindcss/postcss 4.1.16
+18:48:43.864 + @types/node 20.19.23
+18:48:43.864 + @types/react 19.2.2
+18:48:43.864 + @types/react-dom 19.2.2
+18:48:43.864 + eslint 9.38.0
+18:48:43.864 + eslint-config-next 16.0.0
+18:48:43.864 + tailwindcss 4.1.16
+18:48:43.864 + typescript 5.9.3
+18:48:43.864 
+18:48:43.864 ╭ Warning ─────────────────────────────────────────────────────────────────────╮
+18:48:43.864 │                                                                              │
+18:48:43.865 │   Ignored build scripts: core-js, sharp, unrs-resolver.                      │
+18:48:43.865 │   Run "pnpm approve-builds" to pick which dependencies should be allowed     │
+18:48:43.865 │   to run scripts.                                                            │
+18:48:43.865 │                                                                              │
+18:48:43.865 ╰──────────────────────────────────────────────────────────────────────────────╯
+18:48:43.865 
+18:48:43.888 Done in 19.7s using pnpm v10.17.1
+18:48:43.913 Detected Next.js version: 16.0.0
+18:48:43.971 Running "pnpm run build"
+18:48:44.259 
+18:48:44.259 > phishsense@0.1.0 build /vercel/path0
+18:48:44.260 > next build
+18:48:44.260 
+18:48:45.180 Attention: Next.js now collects completely anonymous telemetry regarding usage.
+18:48:45.181 This information is used to shape Next.js' roadmap and prioritize features.
+18:48:45.182 You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+18:48:45.182 https://nextjs.org/telemetry
+18:48:45.182 
+18:48:45.192    ▲ Next.js 16.0.0 (Turbopack)
+18:48:45.193    - Environments: .env.local
+18:48:45.193 
+18:48:45.267    Creating an optimized production build ...
+18:49:15.677  ✓ Compiled successfully in 29.9s
+18:49:15.687    Running TypeScript ...
+18:49:24.790 Failed to compile.
+18:49:24.790 
+18:49:24.790 ./components/CloudAnalyticsDashboard.tsx:441:35
+18:49:24.791 Type error: Type 'unknown' is not assignable to type 'ReactNode'.
+18:49:24.791 
+18:49:24.791 [0m [90m 439 |[39m                   {[33mObject[39m[33m.[39mentries(patternStats[33m.[39mbyCategory)[33m.[39mmap(([category[33m,[39m count]) [33m=>[39m (
+18:49:24.791  [90m 440 |[39m                     [33m<[39m[33mBadge[39m key[33m=[39m{category} variant[33m=[39m[32m"secondary"[39m className[33m=[39m[32m"dark:border-gray-600 dark:text-gray-300"[39m[33m>[39m
+18:49:24.791 [31m[1m>[22m[39m[90m 441 |[39m                       {category}[33m:[39m {count}
+18:49:24.791  [90m     |[39m                                   [31m[1m^[22m[39m
+18:49:24.791  [90m 442 |[39m                     [33m<[39m[33m/[39m[33mBadge[39m[33m>[39m
+18:49:24.793  [90m 443 |[39m                   ))}
+18:49:24.793  [90m 444 |[39m                 [33m<[39m[33m/[39m[33mdiv[39m[33m>[39m[0m
+18:49:24.838 Next.js build worker exited with code: 1 and signal: null
+18:49:24.883  ELIFECYCLE  Command failed with exit code 1.
+18:49:24.901 Error: Command "pnpm run build" exited with 1
