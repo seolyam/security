@@ -69,14 +69,14 @@ export default function EmailHighlighter({
           className={`relative cursor-pointer transition-all duration-200 ${severityColor} ${isHovered ? 'ring-2 ring-blue-400' : ''}`}
           onMouseEnter={() => showHoverEffects && setHoveredFinding(finding.id)}
           onMouseLeave={() => showHoverEffects && setHoveredFinding(null)}
-          title={showHoverEffects ? `${finding.category} (${finding.severity})` : undefined}
+          title={showHoverEffects ? `${finding.category || 'Unknown'} (${finding.severity})` : undefined}
         >
           {content.slice(startIndex, endIndex)}
 
           {/* Hover tooltip */}
           {isHovered && showHoverEffects && (
             <div className="absolute bottom-full left-0 mb-2 p-2 bg-gray-800 text-white text-xs rounded shadow-lg z-10 whitespace-nowrap">
-              <div className="font-medium">{finding.category}</div>
+              <div className="font-medium">{finding.category || 'Unknown'}</div>
               <div className="text-gray-300 capitalize">{finding.severity} severity</div>
               <div className="absolute top-full left-2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
             </div>

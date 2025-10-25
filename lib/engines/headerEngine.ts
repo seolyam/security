@@ -7,7 +7,7 @@ export interface HeaderResult {
     severity: 'low' | 'medium' | 'high';
     text: string;
     meta?: any;
-    category: string;
+    category?: string;
   }>;
   details: {
     spfStatus?: string;

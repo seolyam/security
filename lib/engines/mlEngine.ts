@@ -9,7 +9,7 @@ export interface MLResult {
     severity: 'low' | 'medium' | 'high';
     text: string;
     meta?: any;
-    category: string;
+    category?: string;
   }>;
   modelUsed: string;
   processingTime: number;
