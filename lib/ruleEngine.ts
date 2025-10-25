@@ -7,6 +7,7 @@ export type Finding = {
   meta?: any;
   startIndex?: number;
   endIndex?: number;
+  category?: string;
 };
 
 const phishingKeywords = [

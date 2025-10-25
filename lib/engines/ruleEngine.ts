@@ -1,13 +1,32 @@
+/**
+ * @fileoverview Rule-based phishing detection engine
+ *
+ * This module implements heuristic-based analysis for detecting phishing patterns
+ * in email content. It analyzes keywords, URLs, domains, and structural elements
+ * to identify potential phishing attempts.
+ *
+ * @author PhishingSense Team
+ * @version 2.0.0
+ * @since 2024
+ */
+
+import { Finding } from '../ruleEngine';
 import patterns from '../data/patterns.json';
 
-export interface Finding {
-  id: string;
-  severity: 'low' | 'medium' | 'high';
-  text: string;
-  meta?: any;
-  startIndex?: number;
-  endIndex?: number;
-  category: string;
+/**
+ * Configuration options for rule-based analysis
+ */
+export interface RuleEngineConfig {
+  /** Sensitivity level for detection (lenient, balanced, strict) */
+  sensitivity?: 'lenient' | 'balanced' | 'strict';
+  /** Enable URL analysis */
+  enableUrlAnalysis?: boolean;
+  /** Enable domain validation */
+  enableDomainAnalysis?: boolean;
+  /** Enable attachment analysis */
+  enableAttachmentAnalysis?: boolean;
+  /** Custom keyword weights override */
+  customWeights?: { [keyword: string]: number };
 }
 
 export interface RuleResult {

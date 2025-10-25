@@ -15,6 +15,13 @@ import { AlertTriangle, CheckCircle, AlertCircle, Download, FileText, History, E
 import EmailHighlighter from './EmailHighlighter';
 import HistoryPanel from './HistoryPanel';
 import ConfidenceGauge from './ConfidenceGauge';
+import LabelingInterface from './LabelingInterface';
+import ExplanationModal from './ExplanationModal';
+import RiskRadarChart from './RiskRadarChart';
+import EnhancedEmailHighlighter from './EnhancedEmailHighlighter';
+import SafetyTipsCarousel from './SafetyTipsCarousel';
+import PhishingQuiz from './PhishingQuiz';
+import { useTheme } from '../lib/themeProvider';
 
 export default function AnalyzerForm() {
   const [formData, setFormData] = useState({
@@ -29,6 +36,9 @@ export default function AnalyzerForm() {
   const [showHeaders, setShowHeaders] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [showVisualization, setShowVisualization] = useState(true);
+  const [explanationModal, setExplanationModal] = useState<{ isOpen: boolean; finding?: any }>({ isOpen: false });
+  const { theme } = useTheme();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,19 +134,19 @@ export default function AnalyzerForm() {
     <div className="space-y-6">
       {/* Header */}
       <div className="text-center">
-        <h1 className="text-3xl font-bold mb-2">Email Security Analyzer</h1>
-        <p className="text-gray-600">Advanced phishing detection with AI-powered analysis</p>
+        <h1 className="text-3xl font-bold mb-2 dark:text-white">Email Security Analyzer</h1>
+        <p className="text-gray-600 dark:text-gray-400">Advanced phishing detection with AI-powered analysis</p>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Input Form */}
         <div className="space-y-6">
-          <Card>
+          <Card className="dark:bg-gray-800 dark:border-gray-700">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Email Analysis</CardTitle>
-                  <CardDescription>
+                  <CardTitle className="dark:text-white">Email Analysis</CardTitle>
+                  <CardDescription className="dark:text-gray-400">
                     Paste email content to analyze for potential phishing attempts
                   </CardDescription>
                 </div>
@@ -144,7 +154,7 @@ export default function AnalyzerForm() {
                   variant="outline"
                   size="sm"
                   onClick={() => setShowHistory(!showHistory)}
-                  className="flex items-center gap-1"
+                  className="flex items-center gap-1 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
                 >
                   <History className="h-4 w-4" />
                   History
@@ -154,44 +164,47 @@ export default function AnalyzerForm() {
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <Label htmlFor="from">From</Label>
+                  <Label htmlFor="from" className="dark:text-gray-300">From</Label>
                   <Input
                     id="from"
                     placeholder="sender@example.com"
                     value={formData.from}
                     onChange={(e) => handleInputChange('from', e.target.value)}
+                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="subject">Subject</Label>
+                  <Label htmlFor="subject" className="dark:text-gray-300">Subject</Label>
                   <Input
                     id="subject"
                     placeholder="Email subject line"
                     value={formData.subject}
                     onChange={(e) => handleInputChange('subject', e.target.value)}
+                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="body">Email Body</Label>
+                  <Label htmlFor="body" className="dark:text-gray-300">Email Body</Label>
                   <Textarea
                     id="body"
                     placeholder="Paste the full email content here..."
                     rows={8}
                     value={formData.body}
                     onChange={(e) => handleInputChange('body', e.target.value)}
+                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
                   />
                 </div>
 
                 {/* Advanced Options */}
-                <div className="space-y-3 p-4 border rounded-lg bg-gray-50">
+                <div className="space-y-3 p-4 border rounded-lg bg-gray-50 dark:bg-gray-700/50 dark:border-gray-600">
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
                     onClick={() => setShowHeaders(!showHeaders)}
-                    className="flex items-center gap-1 text-sm"
+                    className="flex items-center gap-1 text-sm dark:text-gray-300 dark:hover:bg-gray-600"
                   >
                     {showHeaders ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     Advanced Options
@@ -200,13 +213,14 @@ export default function AnalyzerForm() {
                   {showHeaders && (
                     <>
                       <div>
-                        <Label htmlFor="headers">Email Headers (Optional)</Label>
+                        <Label htmlFor="headers" className="dark:text-gray-300">Email Headers (Optional)</Label>
                         <Textarea
                           id="headers"
                           placeholder="Paste raw email headers here for advanced analysis..."
                           rows={6}
                           value={formData.headers}
                           onChange={(e) => handleInputChange('headers', e.target.value)}
+                          className="dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
                         />
                       </div>
 
@@ -216,9 +230,9 @@ export default function AnalyzerForm() {
                           id="useML"
                           checked={useML}
                           onChange={(e) => setUseML(e.target.checked)}
-                          className="rounded"
+                          className="rounded dark:bg-gray-700 dark:border-gray-600"
                         />
-                        <Label htmlFor="useML" className="text-sm">
+                        <Label htmlFor="useML" className="text-sm dark:text-gray-300">
                           Enable ML Analysis (Beta)
                         </Label>
                       </div>
@@ -234,7 +248,7 @@ export default function AnalyzerForm() {
                   >
                     {isAnalyzing ? 'Analyzing...' : 'Analyze Email'}
                   </Button>
-                  <Button type="button" variant="outline" onClick={resetForm}>
+                  <Button type="button" variant="outline" onClick={resetForm} className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700">
                     Clear
                   </Button>
                 </div>
@@ -246,7 +260,7 @@ export default function AnalyzerForm() {
           {showHistory && (
             <HistoryPanel
               onLoadAnalysis={handleLoadAnalysis}
-              className="max-h-96"
+              className="max-h-96 dark:bg-gray-800 dark:border-gray-700"
             />
           )}
         </div>
@@ -263,9 +277,9 @@ export default function AnalyzerForm() {
               />
 
               {/* Export Options */}
-              <Card>
+              <Card className="dark:bg-gray-800 dark:border-gray-700">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 dark:text-white">
                     <Download className="h-5 w-5" />
                     Export Options
                   </CardTitle>
@@ -275,7 +289,7 @@ export default function AnalyzerForm() {
                     <Button
                       variant="outline"
                       onClick={handleExportJSON}
-                      className="flex items-center gap-1"
+                      className="flex items-center gap-1 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
                     >
                       <FileText className="h-4 w-4" />
                       JSON
@@ -284,7 +298,7 @@ export default function AnalyzerForm() {
                       variant="outline"
                       onClick={handleExportPDF}
                       disabled={isExporting}
-                      className="flex items-center gap-1"
+                      className="flex items-center gap-1 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
                     >
                       <Download className="h-4 w-4" />
                       {isExporting ? 'Exporting...' : 'PDF Report'}
@@ -293,28 +307,73 @@ export default function AnalyzerForm() {
                 </CardContent>
               </Card>
 
-              {/* Email Content with Highlights */}
-              {formData.body && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Eye className="h-5 w-5" />
-                      Content Analysis
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <EmailHighlighter
-                      content={formData.body}
-                      findings={result.findings}
-                    />
-                  </CardContent>
-                </Card>
+              {/* Enhanced Email Highlighter */}
+              {formData.body && result.findings && (
+                <EnhancedEmailHighlighter
+                  content={formData.body}
+                  findings={result.findings}
+                  showHoverEffects={true}
+                  showCategories={true}
+                />
+              )}
+
+              {/* Risk Radar Chart */}
+              {result.breakdown && showVisualization && (
+                <RiskRadarChart
+                  breakdown={result.breakdown}
+                  overallScore={result.score}
+                />
+              )}
+
+              {/* AI Learning Interface */}
+              {result && (
+                <LabelingInterface
+                  emailContent={formData}
+                  currentPrediction={{
+                    isPhishing: result.score >= 70,
+                    confidence: result.score / 100
+                  }}
+                />
+              )}
+
+              {/* Educational Content */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                <SafetyTipsCarousel autoPlay={false} />
+                <div className="space-y-4">
+                  <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Learn More</h3>
+                    <p className="text-sm text-blue-800 dark:text-blue-200 mb-3">
+                      Click the explain buttons next to findings to understand why they were flagged.
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setExplanationModal({
+                        isOpen: true,
+                        finding: result.findings[0]
+                      })}
+                      disabled={result.findings.length === 0}
+                      className="dark:border-blue-600 dark:text-blue-300 dark:hover:bg-blue-900/30"
+                    >
+                      Explain First Finding
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Explanation Modal */}
+              {explanationModal.isOpen && explanationModal.finding && (
+                <ExplanationModal
+                  isOpen={explanationModal.isOpen}
+                  onClose={() => setExplanationModal({ isOpen: false })}
+                  finding={explanationModal.finding}
+                />
               )}
 
               {/* Detailed Findings */}
-              <Card>
+              <Card className="dark:bg-gray-800 dark:border-gray-700">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 dark:text-white">
                     <AlertTriangle className="h-5 w-5" />
                     Detailed Findings
                   </CardTitle>
@@ -325,27 +384,40 @@ export default function AnalyzerForm() {
                       {result.findings.map((finding: any) => (
                         <div
                           key={finding.id}
-                          className={`p-3 rounded-lg border ${
-                            finding.severity === 'high' ? 'border-red-200 bg-red-50' :
-                            finding.severity === 'medium' ? 'border-yellow-200 bg-yellow-50' :
-                            'border-gray-200 bg-gray-50'
+                          className={`p-3 rounded-lg border dark:border-gray-700 dark:bg-gray-800/50 ${
+                            finding.severity === 'high' ? 'border-red-200 bg-red-50 dark:bg-red-900/20' :
+                              finding.severity === 'medium' ? 'border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20' :
+                              'border-gray-200 bg-gray-50 dark:bg-gray-800/50'
                           }`}
                         >
                           <div className="flex items-start gap-2">
-                            {finding.severity === 'high' && <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5" />}
-                            {finding.severity === 'medium' && <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5" />}
-                            {finding.severity === 'low' && <CheckCircle className="h-4 w-4 text-gray-600 mt-0.5" />}
+                            {finding.severity === 'high' && <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5" />}
+                            {finding.severity === 'medium' && <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 mt-0.5" />}
+                            {finding.severity === 'low' && <CheckCircle className="h-4 w-4 text-gray-600 dark:text-gray-400 mt-0.5" />}
                             <div className="flex-1">
-                              <div className="text-sm font-medium">{finding.text}</div>
-                              <div className="text-xs text-gray-500 capitalize">{finding.severity} severity • {finding.category}</div>
+                              <div className="text-sm font-medium dark:text-white">{finding.text}</div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400 capitalize">
+                                {finding.severity} severity • {finding.category}
+                              </div>
                             </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setExplanationModal({
+                                isOpen: true,
+                                finding
+                              })}
+                              className="text-xs"
+                            >
+                              Explain
+                            </Button>
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      <CheckCircle className="h-12 w-12 mx-auto mb-2 text-green-600" />
+                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                      <CheckCircle className="h-12 w-12 mx-auto mb-2 text-green-600 dark:text-green-400" />
                       <p>No suspicious indicators found</p>
                     </div>
                   )}

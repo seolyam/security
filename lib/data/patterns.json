@@ -3,32 +3,65 @@
     "urgent": {
       "weight": 15,
       "severity": "medium",
-      "patterns": ["urgent", "immediate", "asap", "right now", "emergency", "critical"]
+      "patterns": ["urgent", "immediate", "asap", "right now", "emergency", "critical", "act now", "limited time", "expires soon", "final notice"]
     },
     "verification": {
       "weight": 20,
       "severity": "medium",
-      "patterns": ["verify", "verification", "confirm", "validate", "authenticate"]
+      "patterns": ["verify", "verification", "confirm", "validate", "authenticate", "identity", "credentials", "access code", "security code"]
     },
     "credentials": {
       "weight": 25,
       "severity": "high",
-      "patterns": ["password", "login", "username", "account", "credentials", "sign in"]
+      "patterns": ["password", "login", "username", "account", "credentials", "sign in", "log in", "user id", "pin", "otp", "one time password"]
     },
     "financial": {
       "weight": 20,
       "severity": "medium",
-      "patterns": ["bank", "payment", "money", "transaction", "balance", "funds"]
+      "patterns": ["bank", "payment", "money", "transaction", "balance", "funds", "credit", "debit", "transfer", "deposit", "withdrawal", "invoice", "billing"]
     },
     "suspicious": {
       "weight": 15,
       "severity": "medium",
-      "patterns": ["suspicious", "unusual", "activity", "security alert", "breach"]
+      "patterns": ["suspicious", "unusual", "activity", "security alert", "breach", "hacked", "compromised", "unauthorized", "fraud", "scam"]
     },
     "action": {
       "weight": 10,
       "severity": "low",
-      "patterns": ["click", "update", "download", "install", "open"]
+      "patterns": ["click", "update", "download", "install", "open", "view", "review", "check", "visit", "access"]
+    },
+    "crypto": {
+      "weight": 30,
+      "severity": "high",
+      "patterns": ["crypto", "cryptocurrency", "bitcoin", "ethereum", "wallet", "blockchain", "mining", "withdrawal", "deposit", "trading", "investment"]
+    },
+    "delivery": {
+      "weight": 15,
+      "severity": "medium",
+      "patterns": ["delivery", "package", "shipment", "tracking", "courier", "fedex", "ups", "dhl", "usps", "mail", "parcel"]
+    },
+    "subscription": {
+      "weight": 12,
+      "severity": "low",
+      "patterns": ["subscription", "renewal", "billing", "payment", "cancel", "upgrade", "premium", "trial", "netflix", "spotify", "amazon prime"]
+    },
+    "techSupport": {
+      "weight": 18,
+      "severity": "medium",
+      "patterns": ["technical support", "help desk", "customer service", "error", "problem", "issue", "malware", "virus", "infected", "slow", "crash"]
+    },
+    "government": {
+      "weight": 22,
+      "severity": "high",
+      "patterns": ["irs", "tax", "refund", "social security", "medicare", "government", "official", "agency", "department", "revenue", "treasury"]
+    }
+  },
+
+  "localizedTerms": {
+    "filipino": {
+      "weight": 25,
+      "severity": "high",
+      "patterns": ["bpi", "metrobank", "bdo", "unionbank", "security bank", "rcbc", "phishing", "scam", "fraud", "account", "password", "verify", "urgent", "immediate", "click here", "link", "verify account", "update information", "security alert", "suspicious activity"]
     }
   },
 
@@ -42,7 +75,16 @@
     "chase-verify.com",
     "wellsfargo-alert.com",
     "google-account.com",
-    "facebook-security.com"
+    "facebook-security.com",
+    "netflix-billing.com",
+    "spotify-premium.com",
+    "crypto-wallet.com",
+    "bitcoin-trading.com",
+    "irs-refund.com",
+    "social-security.gov-update.com",
+    "fedex-tracking.com",
+    "ups-delivery.com",
+    "dhl-shipment.com"
   ],
 
   "legitimateDomains": [
@@ -55,25 +97,35 @@
     "amazon.com",
     "google.com",
     "facebook.com",
-    "github.com"
+    "github.com",
+    "netflix.com",
+    "spotify.com",
+    "irs.gov",
+    "ssa.gov",
+    "fedex.com",
+    "ups.com",
+    "dhl.com"
   ],
 
   "urlPatterns": {
-    "shorteners": ["bit.ly", "tinyurl", "goo.gl", "t.co", "tiny.cc", "is.gd", "buff.ly"],
-    "suspicious": ["login", "secure", "verify", "account", "bank", "paypal"],
-    "ipPatterns": ["\\b\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\b"]
+    "shorteners": ["bit.ly", "tinyurl", "goo.gl", "t.co", "tiny.cc", "is.gd", "buff.ly", "shorte.st", "adf.ly", "bit.do"],
+    "suspicious": ["login", "secure", "verify", "account", "bank", "paypal", "crypto", "wallet", "refund", "claim", "prize"],
+    "ipPatterns": ["\\b\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\b"],
+    "suspiciousTlds": ["\\b[a-zA-Z0-9.-]+\\.(tk|ml|ga|cf|top|bid|click|download|stream|party|review|trade|win|loan|date|cricket|racing)\\b"]
   },
 
   "attachmentPatterns": {
-    "suspicious": [".exe", ".scr", ".zip", ".rar", ".bat", ".cmd", ".pif", ".com"],
-    "documents": [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx"]
+    "suspicious": [".exe", ".scr", ".zip", ".rar", ".bat", ".cmd", ".pif", ".com", ".js", ".jar", ".vbs", ".ps1"],
+    "documents": [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".rtf", ".txt"],
+    "images": [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".svg", ".webp"]
   },
 
   "htmlIndicators": {
-    "forms": ["<form", "<input", "<button", "<select"],
-    "scripts": ["<script", "javascript:", "onload", "onclick"],
-    "iframes": ["<iframe", "<embed", "<object"],
-    "links": ["<a href", "href="]
+    "forms": ["<form", "<input", "<button", "<select", "<textarea"],
+    "scripts": ["<script", "javascript:", "onload", "onclick", "onmouseover", "onfocus", "onblur"],
+    "iframes": ["<iframe", "<embed", "<object", "<applet"],
+    "links": ["<a href", "href=", "target=", "rel="],
+    "styles": ["style=", "css", "hidden", "display:none"]
   },
 
   "scoringWeights": {
@@ -85,19 +137,79 @@
 
   "phishingTemplates": {
     "paypal": {
-      "patterns": ["paypal", "account verification", "security alert", "limited access"],
-      "commonSubjects": ["Account Security Alert", "Verify Your PayPal Account", "Urgent: Account Access Limited"],
-      "riskScore": 80
+      "patterns": ["paypal", "account verification", "security alert", "limited access", "unusual activity"],
+      "commonSubjects": ["Account Security Alert", "Verify Your PayPal Account", "Urgent: Account Access Limited", "PayPal Account Suspension"],
+      "riskScore": 85,
+      "explanation": "Phishing emails often impersonate PayPal to steal login credentials."
     },
     "bank": {
-      "patterns": ["bank", "statement", "transaction", "account balance", "security check"],
-      "commonSubjects": ["Account Statement", "Transaction Alert", "Security Verification"],
-      "riskScore": 60
+      "patterns": ["bank", "statement", "transaction", "account balance", "security check", "fraud alert"],
+      "commonSubjects": ["Account Statement", "Transaction Alert", "Security Verification", "Account Update Required"],
+      "riskScore": 65,
+      "explanation": "Bank phishing typically requests account verification or claims suspicious activity."
     },
     "tech": {
-      "patterns": ["apple", "microsoft", "google", "amazon", "account", "password", "login"],
-      "commonSubjects": ["Account Security", "Password Reset", "Unusual Activity"],
-      "riskScore": 75
+      "patterns": ["apple", "microsoft", "google", "amazon", "account", "password", "login", "icloud", "onedrive"],
+      "commonSubjects": ["Account Security", "Password Reset", "Unusual Activity", "Device Verification"],
+      "riskScore": 75,
+      "explanation": "Tech company phishing often claims account compromise or requires password reset."
+    },
+    "crypto": {
+      "patterns": ["crypto", "cryptocurrency", "bitcoin", "ethereum", "wallet", "withdrawal", "mining", "investment"],
+      "commonSubjects": ["Crypto Withdrawal", "Wallet Security", "Investment Opportunity", "Account Verification"],
+      "riskScore": 90,
+      "explanation": "Cryptocurrency scams promise high returns or claim wallet compromise."
+    },
+    "delivery": {
+      "patterns": ["delivery", "package", "tracking", "courier", "shipment", "address", "confirmation"],
+      "commonSubjects": ["Package Delivery", "Shipment Update", "Delivery Confirmation", "Address Verification"],
+      "riskScore": 50,
+      "explanation": "Delivery scams often request payment or address verification for fake packages."
+    },
+    "government": {
+      "patterns": ["irs", "tax", "refund", "social security", "government", "official", "claim", "benefits"],
+      "commonSubjects": ["Tax Refund", "Social Security", "Government Benefits", "Official Notice"],
+      "riskScore": 80,
+      "explanation": "Government impersonation scams often promise refunds or benefits."
+    }
+  },
+
+  "educationalContent": {
+    "tips": [
+      "Always verify the sender's email address carefully",
+      "Hover over links before clicking to see the real URL",
+      "Never share passwords or financial information via email",
+      "Use two-factor authentication on all accounts",
+      "Keep your software and antivirus updated",
+      "Be suspicious of unsolicited requests for personal information",
+      "Check for HTTPS and valid SSL certificates on websites"
+    ],
+    "explanations": {
+      "urgent": "Phishing emails often use urgency to make you act quickly without thinking",
+      "verification": "Legitimate companies rarely ask you to verify information through email links",
+      "credentials": "Never enter login credentials on suspicious websites",
+      "financial": "Banks never request sensitive information through email",
+      "crypto": "Cryptocurrency scams often promise unrealistic returns",
+      "delivery": "Fake delivery notifications often lead to phishing sites",
+      "government": "Government agencies communicate through official channels, not email links"
+    }
+  },
+
+  "sensitivityLevels": {
+    "lenient": {
+      "keywordThreshold": 0.3,
+      "mlThreshold": 0.4,
+      "headerThreshold": 0.5
+    },
+    "balanced": {
+      "keywordThreshold": 0.5,
+      "mlThreshold": 0.6,
+      "headerThreshold": 0.7
+    },
+    "strict": {
+      "keywordThreshold": 0.7,
+      "mlThreshold": 0.8,
+      "headerThreshold": 0.9
     }
   }
 }
