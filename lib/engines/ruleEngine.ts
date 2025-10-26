@@ -209,9 +209,11 @@ export class RuleEngine {
 
   private analyzeAttachments(body: string): Finding[] {
     const findings: Finding[] = [];
+    const sanitizedBody = body.replace(/https?:\/\/\S+/gi, ' ');
 
     this.patterns.attachmentPatterns.suspicious.forEach((extension: string) => {
-      if (new RegExp(`\\${extension}`, 'i').test(body)) {
+      const attachmentRegex = new RegExp(`\\b[\\w-]+${extension.replace('.', '\\.')}(?:\\b|$)`, 'i');
+      if (attachmentRegex.test(sanitizedBody)) {
         findings.push({
           id: `attachment-${extension}`,
           severity: 'high',

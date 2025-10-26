@@ -49,8 +49,10 @@ export class ScoreCombiner {
   private ruleEngine: RuleEngine;
   private headerEngine: HeaderEngine;
   private mlEngine: MLEngine;
+  private config: AnalysisConfig;
 
   constructor(config: AnalysisConfig) {
+    this.config = config;
     this.ruleEngine = new RuleEngine();
     this.headerEngine = new HeaderEngine();
     this.mlEngine = new MLEngine(config.mlConfig);
@@ -83,36 +85,57 @@ export class ScoreCombiner {
     const weights = patterns.scoringWeights;
 
     let combinedScore = 0;
+    let activeWeight = 0;
     const breakdown = {
       rules: {
         score: ruleResult.score,
-        percentage: weights.keywords * 100,
+        percentage: 0,
         details: ruleResult.details
       },
       headers: {
         score: headerResult.score,
-        percentage: weights.headers * 100,
+        percentage: 0,
         details: headerResult.details
       },
       ml: {
         score: mlResult.score,
-        percentage: weights.ml * 100,
+        percentage: 0,
         confidence: mlResult.confidence,
         modelUsed: mlResult.modelUsed
       },
       misc: {
         score: 0, // Will be calculated based on additional factors
-        percentage: weights.misc * 100
+        percentage: 0
       }
     };
 
-    // Apply sensitivity adjustments
-    const sensitivityMultiplier = this.getSensitivityMultiplier(content.headers ? 'medium' : 'low');
+    if (weights.keywords > 0) {
+      combinedScore += ruleResult.score * weights.keywords;
+      activeWeight += weights.keywords;
+      breakdown.rules.percentage = weights.keywords;
+    }
 
-    // Calculate weighted score
-    combinedScore += ruleResult.score * weights.keywords * sensitivityMultiplier;
-    combinedScore += headerResult.score * weights.headers * sensitivityMultiplier;
-    combinedScore += mlResult.score * weights.ml * sensitivityMultiplier;
+    const hasHeaders = Boolean(content.headers && content.headers.trim().length > 0);
+    if (weights.headers > 0 && hasHeaders) {
+      combinedScore += headerResult.score * weights.headers;
+      activeWeight += weights.headers;
+      breakdown.headers.percentage = weights.headers;
+    }
+
+    const mlEnabled = this.config.enableML && this.mlEngine.isReady();
+    if (weights.ml > 0 && mlEnabled) {
+      combinedScore += mlResult.score * weights.ml;
+      activeWeight += weights.ml;
+      breakdown.ml.percentage = weights.ml;
+    }
+
+    if (activeWeight > 0) {
+      combinedScore /= activeWeight;
+    }
+
+    // Apply sensitivity adjustments
+    const sensitivityMultiplier = this.getSensitivityMultiplier(this.config.sensitivity);
+    combinedScore *= sensitivityMultiplier;
 
     // Combine all findings
     const allFindings = [
@@ -120,6 +143,16 @@ export class ScoreCombiner {
       ...headerResult.findings,
       ...mlResult.findings
     ];
+
+    breakdown.rules.percentage = activeWeight > 0 && breakdown.rules.percentage > 0
+      ? (breakdown.rules.percentage / activeWeight) * 100
+      : 0;
+    breakdown.headers.percentage = activeWeight > 0 && breakdown.headers.percentage > 0
+      ? (breakdown.headers.percentage / activeWeight) * 100
+      : 0;
+    breakdown.ml.percentage = activeWeight > 0 && breakdown.ml.percentage > 0
+      ? (breakdown.ml.percentage / activeWeight) * 100
+      : 0;
 
     // Determine risk level
     const riskLevel = combinedScore < 30 ? 'Low' : combinedScore < 70 ? 'Medium' : 'High';
@@ -146,6 +179,16 @@ export class ScoreCombiner {
   }
 
   updateConfig(config: Partial<AnalysisConfig>): void {
+    this.config = {
+      ...this.config,
+      ...config,
+      mlConfig: config.mlConfig
+        ? { ...this.config.mlConfig, ...config.mlConfig }
+        : this.config.mlConfig
+    };
+    if (typeof config.enableML === 'boolean') {
+      this.config.enableML = config.enableML;
+    }
     if (config.mlConfig) {
       this.mlEngine.updateConfig(config.mlConfig);
     }

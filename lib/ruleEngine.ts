@@ -1,4 +1,5 @@
 import { ScoreCombiner, AnalysisResult, AnalysisConfig } from './engines/scoreCombiner';
+import { MLConfig } from './engines/mlEngine';
 
 export type Finding = {
   id: string;
@@ -82,13 +83,18 @@ export async function analyzeEmailV2(content: {
   headers?: string;
 }, config?: Partial<AnalysisConfig>): Promise<AnalysisResult> {
 
+  const enableML = config?.mlConfig?.enabled ?? config?.enableML ?? false;
+
+  const mlConfig: MLConfig = {
+    enabled: enableML,
+    modelType: config?.mlConfig?.modelType ?? 'client',
+    confidenceThreshold: config?.mlConfig?.confidenceThreshold ?? 0.5,
+    apiEndpoint: config?.mlConfig?.apiEndpoint
+  };
+
   const analysisConfig: AnalysisConfig = {
-    enableML: config?.enableML ?? false,
-    mlConfig: config?.mlConfig ?? {
-      enabled: false,
-      modelType: 'client',
-      confidenceThreshold: 0.5
-    },
+    enableML,
+    mlConfig,
     sensitivity: config?.sensitivity ?? 'medium'
   };
 

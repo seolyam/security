@@ -48,6 +48,11 @@ export default function AnalyzerForm() {
     try {
       const analysis = await analyzeEmailV2(formData, {
         enableML: useML,
+        mlConfig: {
+          enabled: useML,
+          modelType: 'client',
+          confidenceThreshold: 0.5
+        },
         sensitivity: 'medium'
       });
       setResult(analysis);
@@ -63,7 +68,7 @@ export default function AnalyzerForm() {
             verdict: analysis.score >= 70 ? 'phishing' : analysis.score >= 30 ? 'suspicious' : 'safe',
             keywords: analysis.findings.map((f: any) => f.text),
             links: [], // Could extract URLs from content
-            mlConfidence: analysis.score / 100,
+            mlConfidence: analysis.breakdown?.ml?.confidence ?? 0,
           });
         } catch (error) {
           console.error('Error saving to cloud:', error);

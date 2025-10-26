@@ -1,6 +1,11 @@
 import * as tf from '@tensorflow/tfjs';
 import patterns from '../data/patterns.json';
 
+const KEYWORD_PATTERN_COUNT = Object.values(patterns.phishingKeywords)
+  .reduce((total, category: any) => total + (category.patterns?.length || 0), 0);
+const ADDITIONAL_FEATURE_COUNT = 10;
+const FEATURE_VECTOR_LENGTH = KEYWORD_PATTERN_COUNT + ADDITIONAL_FEATURE_COUNT;
+
 export interface MLResult {
   score: number;
   confidence: number;
@@ -52,7 +57,7 @@ export class MLEngine {
       // In production, you'd load a pre-trained model from a URL
       this.model = tf.sequential({
         layers: [
-          tf.layers.dense({ inputShape: [Object.keys(patterns.phishingKeywords).length + 10], units: 32, activation: 'relu' }),
+          tf.layers.dense({ inputShape: [FEATURE_VECTOR_LENGTH], units: 32, activation: 'relu' }),
           tf.layers.dropout({ rate: 0.2 }),
           tf.layers.dense({ units: 16, activation: 'relu' }),
           tf.layers.dense({ units: 1, activation: 'sigmoid' })
@@ -212,7 +217,7 @@ export class MLEngine {
 
   private textToFeatures(texts: string[]): number[][] {
     return texts.map(text => {
-      const features = new Array(Object.keys(patterns.phishingKeywords).length + 10).fill(0);
+      const features = new Array(FEATURE_VECTOR_LENGTH).fill(0);
       const lowerText = text.toLowerCase();
 
       let featureIndex = 0;
@@ -220,7 +225,7 @@ export class MLEngine {
       // Keyword features
       Object.values(patterns.phishingKeywords).forEach(category => {
         category.patterns.forEach((pattern: string) => {
-          if (lowerText.includes(pattern)) {
+          if (featureIndex < KEYWORD_PATTERN_COUNT && lowerText.includes(pattern)) {
             features[featureIndex] = 1;
           }
           featureIndex++;
@@ -228,16 +233,17 @@ export class MLEngine {
       });
 
       // Additional features
-      features[featureIndex++] = lowerText.includes('urgent') ? 1 : 0;
-      features[featureIndex++] = lowerText.includes('click') ? 1 : 0;
-      features[featureIndex++] = lowerText.includes('verify') ? 1 : 0;
-      features[featureIndex++] = lowerText.includes('password') ? 1 : 0;
-      features[featureIndex++] = lowerText.includes('account') ? 1 : 0;
-      features[featureIndex++] = lowerText.includes('bank') ? 1 : 0;
-      features[featureIndex++] = lowerText.includes('paypal') ? 1 : 0;
-      features[featureIndex++] = lowerText.includes('security') ? 1 : 0;
-      features[featureIndex++] = lowerText.includes('update') ? 1 : 0;
-      features[featureIndex++] = (lowerText.match(/https?:\/\//g) || []).length > 0 ? 1 : 0;
+      let additionalIndex = KEYWORD_PATTERN_COUNT;
+      features[additionalIndex++] = lowerText.includes('urgent') ? 1 : 0;
+      features[additionalIndex++] = lowerText.includes('click') ? 1 : 0;
+      features[additionalIndex++] = lowerText.includes('verify') ? 1 : 0;
+      features[additionalIndex++] = lowerText.includes('password') ? 1 : 0;
+      features[additionalIndex++] = lowerText.includes('account') ? 1 : 0;
+      features[additionalIndex++] = lowerText.includes('bank') ? 1 : 0;
+      features[additionalIndex++] = lowerText.includes('paypal') ? 1 : 0;
+      features[additionalIndex++] = lowerText.includes('security') ? 1 : 0;
+      features[additionalIndex++] = lowerText.includes('update') ? 1 : 0;
+      features[additionalIndex] = (lowerText.match(/https?:\/\//g) || []).length > 0 ? 1 : 0;
 
       return features;
     });

@@ -115,7 +115,7 @@
   },
 
   "attachmentPatterns": {
-    "suspicious": [".exe", ".scr", ".zip", ".rar", ".bat", ".cmd", ".pif", ".com", ".js", ".jar", ".vbs", ".ps1"],
+    "suspicious": [".exe", ".scr", ".zip", ".rar", ".bat", ".cmd", ".pif", ".js", ".jar", ".vbs", ".ps1"],
     "documents": [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".rtf", ".txt"],
     "images": [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".svg", ".webp"]
   },
