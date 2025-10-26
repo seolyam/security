@@ -6,17 +6,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Progress } from './ui/progress';
 import { AlertTriangle, CheckCircle, AlertCircle, TrendingUp } from 'lucide-react';
 
+interface BreakdownEntry {
+  score: number;
+  percentage: number;
+  confidence?: number;
+  details?: any;
+  bonus?: number;
+}
+
 interface ConfidenceGaugeProps {
   score: number;
-  breakdown?: {
-    rules: { score: number; percentage: number };
-    headers: { score: number; percentage: number };
-    ml: { score: number; percentage: number; confidence: number };
-    misc: { score: number; percentage: number };
-  };
+  breakdown?: Record<string, BreakdownEntry>;
   className?: string;
   showBreakdown?: boolean;
 }
+
+const LABELS: Record<string, string> = {
+  rules: 'Heuristic Analysis',
+  headers: 'Authentication',
+  reputation: 'Sender Reputation',
+  behavior: 'Behavioral Context',
+  ml: 'ML Analysis',
+  misc: 'Additional Factors'
+};
 
 export default function ConfidenceGauge({
   score,
@@ -107,76 +119,34 @@ export default function ConfidenceGauge({
           >
             {score < 30 ? 'Low Risk' : score < 70 ? 'Medium Risk' : 'High Risk'}
           </Badge>
-
           {/* Score Breakdown */}
           {showBreakdown && breakdown && (
             <div className="w-full space-y-3">
               <h3 className="font-semibold text-sm text-center">Score Breakdown</h3>
 
               <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Rule Engine</span>
-                  <div className="flex items-center gap-2">
-                    <div className="w-16">
-                      <Progress
-                        value={(breakdown.rules.score / 100) * 100}
-                        className="h-1"
-                      />
+                {Object.entries(breakdown)
+                  .filter(([key]) => LABELS[key] && breakdown[key])
+                  .map(([key, value]) => (
+                    <div key={key} className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">{LABELS[key]}</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-16">
+                          <Progress
+                            value={Math.min(100, Math.max(0, value.score))}
+                            className="h-1"
+                          />
+                        </div>
+                        <span className="text-xs text-gray-500 w-10 text-right">
+                          {Math.round(value.score)}%
+                        </span>
+                      </div>
                     </div>
-                    <span className="text-xs text-gray-500 w-8">
-                      {Math.round(breakdown.rules.score)}%
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Header Validation</span>
-                  <div className="flex items-center gap-2">
-                    <div className="w-16">
-                      <Progress
-                        value={(breakdown.headers.score / 100) * 100}
-                        className="h-1"
-                      />
-                    </div>
-                    <span className="text-xs text-gray-500 w-8">
-                      {Math.round(breakdown.headers.score)}%
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">ML Analysis</span>
-                  <div className="flex items-center gap-2">
-                    <div className="w-16">
-                      <Progress
-                        value={(breakdown.ml.score / 100) * 100}
-                        className="h-1"
-                      />
-                    </div>
-                    <span className="text-xs text-gray-500 w-8">
-                      {Math.round(breakdown.ml.score)}%
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Additional</span>
-                  <div className="flex items-center gap-2">
-                    <div className="w-16">
-                      <Progress
-                        value={(breakdown.misc.score / 100) * 100}
-                        className="h-1"
-                      />
-                    </div>
-                    <span className="text-xs text-gray-500 w-8">
-                      {Math.round(breakdown.misc.score)}%
-                    </span>
-                  </div>
-                </div>
+                  ))}
               </div>
 
               {/* ML Confidence Indicator */}
-              {breakdown.ml.confidence > 0 && (
+              {breakdown.ml?.confidence && breakdown.ml.confidence > 0 && (
                 <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-blue-900">ML Confidence</span>
@@ -190,6 +160,12 @@ export default function ConfidenceGauge({
                       className="h-2"
                     />
                   </div>
+                </div>
+              )}
+
+              {breakdown.behavior?.bonus && breakdown.behavior.bonus > 0 && (
+                <div className="mt-2 text-xs text-green-600 text-center">
+                  Behavioral trust signals reduced the risk by approximately {Math.round(breakdown.behavior.bonus)} points.
                 </div>
               )}
             </div>

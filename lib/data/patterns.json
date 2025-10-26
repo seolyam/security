@@ -167,10 +167,11 @@
   },
 
   "scoringWeights": {
-    "keywords": 0.25,
-    "headers": 0.25,
-    "ml": 0.40,
-    "misc": 0.10
+    "heuristics": 0.40,
+    "headers": 0.20,
+    "reputation": 0.20,
+    "ml": 0.15,
+    "behavior": 0.05
   },
 
   "phishingTemplates": {

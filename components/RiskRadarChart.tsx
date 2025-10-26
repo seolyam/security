@@ -6,46 +6,35 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Badge } from './ui/badge';
 import { TrendingUp, Activity } from 'lucide-react';
 
-interface AnalysisBreakdown {
-  rules: { score: number; percentage: number };
-  headers: { score: number; percentage: number };
-  ml: { score: number; percentage: number };
-  misc: { score: number; percentage: number };
-}
+type BreakdownEntry = {
+  score: number;
+  percentage: number;
+};
 
 interface RiskRadarChartProps {
-  breakdown: AnalysisBreakdown;
+  breakdown: Record<string, BreakdownEntry>;
   overallScore: number;
   className?: string;
 }
 
 export default function RiskRadarChart({ breakdown, overallScore, className = '' }: RiskRadarChartProps) {
-  const data = [
-    {
-      factor: 'Rule Engine',
-      score: breakdown.rules.score,
-      percentage: breakdown.rules.percentage,
-      fullMark: 100,
-    },
-    {
-      factor: 'Header Validation',
-      score: breakdown.headers.score,
-      percentage: breakdown.headers.percentage,
-      fullMark: 100,
-    },
-    {
-      factor: 'ML Analysis',
-      score: breakdown.ml.score,
-      percentage: breakdown.ml.percentage,
-      fullMark: 100,
-    },
-    {
-      factor: 'Additional Factors',
-      score: breakdown.misc.score,
-      percentage: breakdown.misc.percentage,
-      fullMark: 100,
-    },
-  ];
+  const LABELS: Record<string, string> = {
+    rules: 'Heuristic Analysis',
+    headers: 'Authentication',
+    reputation: 'Sender Reputation',
+    behavior: 'Behavioral Context',
+    ml: 'ML Analysis',
+    misc: 'Additional Factors'
+  };
+
+  const data = Object.entries(breakdown)
+    .filter(([key]) => LABELS[key])
+    .map(([key, value]) => ({
+      factor: LABELS[key],
+      score: value.score,
+      percentage: value.percentage,
+      fullMark: 100
+    }));
 
   const getScoreColor = (score: number) => {
     if (score < 30) return '#10b981'; // green

@@ -35,9 +35,13 @@ Return-Path: <bounce@random.com>`
     const result = await analyzeEmailV2(sample.email, { enableML: false, sensitivity: 'medium' });
     console.log('\n====', sample.name, '====');
     console.log('Score:', result.score, 'Risk:', result.riskLevel, 'Summary:', result.summary);
-    console.log('Rule Breakdown:', result.breakdown.rules);
-    console.log('Header Breakdown:', result.breakdown.headers);
-    console.log('ML Breakdown:', result.breakdown.ml);
+    console.log('Breakdown Snapshot:', {
+      rules: result.breakdown.rules,
+      headers: result.breakdown.headers,
+      reputation: result.breakdown.reputation,
+      behavior: result.breakdown.behavior,
+      ml: result.breakdown.ml
+    });
     console.log('Findings:', result.findings.map(f => `${f.category ?? 'general'}:${f.severity} -> ${f.text}`));
   }
 }

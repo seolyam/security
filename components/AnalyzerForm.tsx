@@ -24,6 +24,7 @@ import { ScanService } from '../lib/services/scanService';
 import { useTheme } from '../lib/themeProvider';
 import LegitimacyChecklist from './LegitimacyChecklist';
 import { getLegitimacySnapshot, isSenderTrusted, recordTrustedSender } from '../lib/services/trustedService';
+import { recordBehaviorInteraction } from '../lib/services/behaviorService';
 import { OfflineLearningManager } from '../lib/offlineLearning';
 
 export default function AnalyzerForm() {
@@ -81,6 +82,13 @@ export default function AnalyzerForm() {
       });
       setResult(analysis);
       setLegitimateSaved(false);
+
+      try {
+        const verdict = analysis.score >= 70 ? 'phishing' : analysis.score >= 30 ? 'suspicious' : 'safe';
+        recordBehaviorInteraction({ sender: formData.from, verdict });
+      } catch (error) {
+        console.error('Failed to record behavior signals:', error);
+      }
 
       // Save to cloud if user is authenticated
       if (user) {
@@ -154,6 +162,7 @@ export default function AnalyzerForm() {
 
       setLegitimateSaved(true);
       setIsTrustedSender(true);
+      recordBehaviorInteraction({ sender: formData.from, verdict: 'safe' });
       setLegitimacySnapshot(getLegitimacySnapshot({
         sender: formData.from,
         analysis: result,

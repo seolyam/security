@@ -1,8 +1,9 @@
 import patterns from '../data/patterns.json';
 import { RuleEngine, RuleResult } from './ruleEngine';
 import { HeaderEngine, HeaderResult } from './headerEngine';
+import { ReputationEngine, ReputationResult } from './reputationEngine';
+import { BehaviorEngine, BehaviorResult } from './behaviorEngine';
 import { MLEngine, MLResult, MLConfig } from './mlEngine';
-import { isSenderTrusted } from '../services/trustedService';
 
 export interface AnalysisResult {
   score: number;
@@ -25,6 +26,17 @@ export interface AnalysisResult {
       score: number;
       percentage: number;
       details: HeaderResult['details'];
+    };
+    reputation: {
+      score: number;
+      percentage: number;
+      details: ReputationResult['details'];
+    };
+    behavior: {
+      score: number;
+      percentage: number;
+      bonus: number;
+      details: BehaviorResult['details'];
     };
     ml: {
       score: number;
@@ -49,6 +61,8 @@ export interface AnalysisConfig {
 export class ScoreCombiner {
   private ruleEngine: RuleEngine;
   private headerEngine: HeaderEngine;
+  private reputationEngine: ReputationEngine;
+  private behaviorEngine: BehaviorEngine;
   private mlEngine: MLEngine;
   private config: AnalysisConfig;
 
@@ -56,6 +70,8 @@ export class ScoreCombiner {
     this.config = config;
     this.ruleEngine = new RuleEngine();
     this.headerEngine = new HeaderEngine();
+    this.reputationEngine = new ReputationEngine();
+    this.behaviorEngine = new BehaviorEngine();
     this.mlEngine = new MLEngine(config.mlConfig);
   }
 
@@ -72,18 +88,28 @@ export class ScoreCombiner {
     const startTime = Date.now();
 
     // Run all analyses in parallel
-    const [ruleResult, headerResult, mlResult] = await Promise.all([
+    const [ruleResult, headerResult, reputationResult, behaviorResult, mlResult] = await Promise.all([
       this.ruleEngine.analyze(content),
       content.headers ? this.headerEngine.analyze(content.headers) : Promise.resolve({
         score: 0,
         findings: [],
         details: { receivedCount: 0, suspiciousHeaders: 0 }
       } as HeaderResult),
+      this.reputationEngine.analyze(content),
+      Promise.resolve(this.behaviorEngine.analyze({ from: content.from })),
       this.mlEngine.analyze(content)
     ]);
 
     // Combine scores using the weighting system from patterns.json
-    const weights = patterns.scoringWeights;
+    const scoringWeights: any = (patterns as any).scoringWeights || {};
+    const weights = {
+      heuristics: scoringWeights.heuristics ?? scoringWeights.keywords ?? 0.3,
+      headers: scoringWeights.headers ?? 0.2,
+      reputation: scoringWeights.reputation ?? 0.2,
+      behavior: scoringWeights.behavior ?? 0.1,
+      ml: scoringWeights.ml ?? 0.2,
+      misc: scoringWeights.misc ?? 0
+    };
 
     let combinedScore = 0;
     let activeWeight = 0;
@@ -98,6 +124,17 @@ export class ScoreCombiner {
         percentage: 0,
         details: headerResult.details
       },
+      reputation: {
+        score: reputationResult.score,
+        percentage: 0,
+        details: reputationResult.details
+      },
+      behavior: {
+        score: behaviorResult.score,
+        percentage: 0,
+        bonus: behaviorResult.bonus,
+        details: behaviorResult.details
+      },
       ml: {
         score: mlResult.score,
         percentage: 0,
@@ -110,10 +147,10 @@ export class ScoreCombiner {
       }
     };
 
-    if (weights.keywords > 0) {
-      combinedScore += ruleResult.score * weights.keywords;
-      activeWeight += weights.keywords;
-      breakdown.rules.percentage = weights.keywords;
+    if (weights.heuristics > 0) {
+      combinedScore += ruleResult.score * weights.heuristics;
+      activeWeight += weights.heuristics;
+      breakdown.rules.percentage = weights.heuristics;
     }
 
     const hasHeaders = Boolean(content.headers && content.headers.trim().length > 0);
@@ -121,6 +158,18 @@ export class ScoreCombiner {
       combinedScore += headerResult.score * weights.headers;
       activeWeight += weights.headers;
       breakdown.headers.percentage = weights.headers;
+    }
+
+    if (weights.reputation > 0) {
+      combinedScore += reputationResult.score * weights.reputation;
+      activeWeight += weights.reputation;
+      breakdown.reputation.percentage = weights.reputation;
+    }
+
+    if (weights.behavior > 0) {
+      combinedScore += behaviorResult.score * weights.behavior;
+      activeWeight += weights.behavior;
+      breakdown.behavior.percentage = weights.behavior;
     }
 
     const mlEnabled = this.config.enableML && this.mlEngine.isReady();
@@ -138,32 +187,32 @@ export class ScoreCombiner {
     const sensitivityMultiplier = this.getSensitivityMultiplier(this.config.sensitivity);
     combinedScore *= sensitivityMultiplier;
 
-    const trustAdjustments = this.computeTrustAdjustments(content, headerResult, mlResult);
-    if (trustAdjustments.bonus > 0) {
-      combinedScore = Math.max(0, combinedScore - trustAdjustments.bonus);
-      breakdown.misc.score = trustAdjustments.bonus;
+    if (weights.behavior > 0 && behaviorResult.bonus > 0) {
+      const weightedBonus = behaviorResult.bonus * weights.behavior * sensitivityMultiplier;
+      combinedScore = Math.max(0, combinedScore - weightedBonus);
     }
 
     // Combine all findings
     const allFindings = [
       ...ruleResult.findings,
       ...headerResult.findings,
-      ...mlResult.findings,
-      ...trustAdjustments.findings
+      ...reputationResult.findings,
+      ...behaviorResult.findings,
+      ...behaviorResult.bonusFindings,
+      ...mlResult.findings
     ];
 
-    breakdown.rules.percentage = activeWeight > 0 && breakdown.rules.percentage > 0
-      ? (breakdown.rules.percentage / activeWeight) * 100
-      : 0;
-    breakdown.headers.percentage = activeWeight > 0 && breakdown.headers.percentage > 0
-      ? (breakdown.headers.percentage / activeWeight) * 100
-      : 0;
-    breakdown.ml.percentage = activeWeight > 0 && breakdown.ml.percentage > 0
-      ? (breakdown.ml.percentage / activeWeight) * 100
-      : 0;
+    const normalizePercentage = (value: number) =>
+      activeWeight > 0 && value > 0 ? (value / activeWeight) * 100 : 0;
+
+    breakdown.rules.percentage = normalizePercentage(breakdown.rules.percentage);
+    breakdown.headers.percentage = normalizePercentage(breakdown.headers.percentage);
+    breakdown.reputation.percentage = normalizePercentage(breakdown.reputation.percentage);
+    breakdown.behavior.percentage = normalizePercentage(breakdown.behavior.percentage);
+    breakdown.ml.percentage = normalizePercentage(breakdown.ml.percentage);
 
     // Determine risk level
-    const riskLevel = combinedScore < 30 ? 'Low' : combinedScore < 70 ? 'Medium' : 'High';
+    const riskLevel = combinedScore < 35 ? 'Low' : combinedScore < 60 ? 'Medium' : 'High';
     const summary = riskLevel === 'Low' ? 'Likely Safe' :
                    riskLevel === 'Medium' ? 'Suspicious' : 'Phishing';
 
@@ -186,49 +235,6 @@ export class ScoreCombiner {
     }
   }
 
-  private computeTrustAdjustments(content: { from?: string; headers?: string }, headerResult: HeaderResult, mlResult: MLResult) {
-    let bonus = 0;
-    const findings: AnalysisResult['findings'] = [];
-
-    const senderTrusted = isSenderTrusted(content.from);
-    if (senderTrusted) {
-      bonus += 15;
-      findings.push({
-        id: 'trusted-sender',
-        severity: 'low',
-        text: 'Sender previously confirmed as legitimate',
-        category: 'trusted'
-      });
-    }
-
-    const headerBonus = headerResult.details?.authPositiveBonus || 0;
-    if (headerBonus > 0) {
-      bonus += Math.min(20, headerBonus);
-      findings.push({
-        id: 'auth-positive',
-        severity: 'low',
-        text: 'All authentication checks passed',
-        meta: headerResult.details?.authSummary,
-        category: 'authentication-positive'
-      });
-    }
-
-    if (mlResult.score < 40 && mlResult.confidence >= 0.6) {
-      bonus += 10;
-      findings.push({
-        id: 'ml-safe-indicator',
-        severity: 'low',
-        text: 'ML model indicates low phishing probability',
-        meta: { mlScore: mlResult.score, confidence: mlResult.confidence },
-        category: 'ml-positive'
-      });
-    }
-
-    bonus = Math.min(45, bonus);
-
-    return { bonus, findings };
-  }
-
   updateConfig(config: Partial<AnalysisConfig>): void {
     this.config = {
       ...this.config,
@@ -249,6 +255,8 @@ export class ScoreCombiner {
     return {
       ruleEngine: this.ruleEngine,
       headerEngine: this.headerEngine,
+      reputationEngine: this.reputationEngine,
+      behaviorEngine: this.behaviorEngine,
       mlEngine: this.mlEngine
     };
   }
