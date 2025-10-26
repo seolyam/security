@@ -1,4 +1,4 @@
-import { supabase } from '../supabase';
+import { supabase, isSupabaseConfigured } from '../supabase';
 import type { ScanLog } from '../supabase';
 
 export interface UserScanStats {
@@ -20,7 +20,10 @@ export interface CreateScanData {
 }
 
 export class ScanService {
-  static async createScan(userId: string, scanData: CreateScanData): Promise<ScanLog> {
+  static async createScan(userId: string, scanData: CreateScanData): Promise<ScanLog | null> {
+    if (!isSupabaseConfigured) {
+      return null;
+    }
     const { data, error } = await supabase
       .from('scan_logs')
       .insert({
@@ -37,11 +40,16 @@ export class ScanService {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw new Error(error.message ?? 'Failed to save analysis to cloud history.');
+    }
     return data as ScanLog;
   }
 
   static async getUserScans(userId: string, limit = 50, offset = 0): Promise<ScanLog[]> {
+    if (!isSupabaseConfigured) {
+      return [];
+    }
     const { data, error } = await supabase
       .from('scan_logs')
       .select('*')
@@ -49,11 +57,16 @@ export class ScanService {
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (error) throw error;
+    if (error) {
+      throw new Error(error.message ?? 'Failed to load cloud history.');
+    }
     return (data ?? []) as ScanLog[];
   }
 
   static async getScanById(scanId: string, userId: string): Promise<ScanLog> {
+    if (!isSupabaseConfigured) {
+      throw new Error('Cloud history is not available.');
+    }
     const { data, error } = await supabase
       .from('scan_logs')
       .select('*')
@@ -61,26 +74,43 @@ export class ScanService {
       .eq('user_id', userId)
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw new Error(error.message ?? 'Failed to load scan.');
+    }
     return data as ScanLog;
   }
 
   static async deleteScan(scanId: string, userId: string): Promise<void> {
+    if (!isSupabaseConfigured) {
+      return;
+    }
     const { error } = await supabase
       .from('scan_logs')
       .delete()
       .match({ id: scanId, user_id: userId });
 
-    if (error) throw error;
+    if (error) {
+      throw new Error(error.message ?? 'Failed to delete scan.');
+    }
   }
 
   static async getUserStats(userId: string): Promise<UserScanStats> {
+    if (!isSupabaseConfigured) {
+      return {
+        totalScans: 0,
+        avgRiskScore: 0,
+        phishingPercentage: 0,
+        recentScans: 0,
+      };
+    }
     const { data, error } = await supabase
       .from('scan_logs')
       .select('risk_score, verdict, created_at')
       .eq('user_id', userId);
 
-    if (error) throw error;
+    if (error) {
+      throw new Error(error.message ?? 'Failed to load scan statistics.');
+    }
 
     const scans = (data ?? []) as Array<Pick<ScanLog, 'risk_score' | 'verdict' | 'created_at'>>;
 
@@ -114,17 +144,25 @@ export class ScanService {
   }
 
   static async getDailyTrends(userId: string, days = 30) {
+    if (!isSupabaseConfigured) {
+      return [];
+    }
     const { data, error } = await supabase
       .rpc('get_user_daily_trends', {
         user_id_param: userId,
         days_param: days,
       });
 
-    if (error) throw error;
+    if (error) {
+      throw new Error(error.message ?? 'Failed to load trends.');
+    }
     return data;
   }
 
   static async searchScans(userId: string, query: string, limit = 20): Promise<ScanLog[]> {
+    if (!isSupabaseConfigured) {
+      return [];
+    }
     const { data, error } = await supabase
       .from('scan_logs')
       .select('*')
@@ -133,7 +171,9 @@ export class ScanService {
       .order('created_at', { ascending: false })
       .limit(limit);
 
-    if (error) throw error;
+    if (error) {
+      throw new Error(error.message ?? 'Failed to search scans.');
+    }
     return (data ?? []) as ScanLog[];
   }
 }

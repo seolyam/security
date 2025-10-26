@@ -4,6 +4,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 const supabaseUrl = 'https://saxmpvvgjkidotpqsaht.supabase.co';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+export const isSupabaseConfigured = Boolean(supabaseAnonKey);
+
 export type AuthSnapshot = {
   spfPassed?: boolean;
   dkimPassed?: boolean;

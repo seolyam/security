@@ -1,4 +1,4 @@
-import { supabase, type SenderBehavior } from '../supabase';
+import { supabase, isSupabaseConfigured, type SenderBehavior } from '../supabase';
 
 interface BehaviorRecord {
   sender: string;
@@ -102,7 +102,7 @@ async function upsertBehaviorRemote({
   userId?: string | null;
   record: BehaviorRecord;
 }) {
-  if (!userId) return;
+  if (!userId || !isSupabaseConfigured) return;
   try {
     const { error } = await supabase.from('sender_behavior').upsert({
       id: `${userId}_${sender}`,
@@ -117,20 +117,22 @@ async function upsertBehaviorRemote({
       last_seen: record.lastSeen,
       updated_at: new Date().toISOString()
     }, { onConflict: 'id' });
-    if (error) console.error('Supabase sender_behavior upsert error:', error);
+    if (error && (error.message ?? '').trim().length > 0) {
+      console.error('Supabase sender_behavior upsert error:', error);
+    }
   } catch (error) {
     console.error('Supabase sender_behavior upsert exception:', error);
   }
 }
 
 export async function syncBehaviorSignalsFromRemote(userId?: string | null): Promise<void> {
-  if (!userId) return;
+  if (!userId || !isSupabaseConfigured) return;
   try {
     const { data, error } = await supabase
       .from('sender_behavior')
       .select('*')
       .match({ user_id: userId });
-    if (error) {
+    if (error && (error.message ?? '').trim().length > 0) {
       console.error('Supabase sender_behavior fetch error:', error);
       return;
     }
