@@ -8,6 +8,7 @@ import { Label } from './ui/label';
 import { Alert, AlertDescription } from './ui/alert';
 import { Shield, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../lib/authProvider';
+import { AuthService } from '../lib/services/authService';
 
 interface AuthFormProps {
   mode: 'signin' | 'signup';
@@ -37,24 +38,38 @@ export default function AuthForm({ mode, onToggleMode, onSuccess }: AuthFormProp
   };
 
   const validateForm = () => {
+    // Enhanced validation with better error messages
     if (!formData.email || !formData.password) {
-      setError('Email and password are required');
+      setError('Please fill in all required fields.');
+      return false;
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setError('Please enter a valid email address.');
       return false;
     }
 
     if (mode === 'signup') {
-      if (!formData.fullName) {
-        setError('Full name is required');
+      if (!formData.fullName || formData.fullName.trim().length < 2) {
+        setError('Please enter your full name (at least 2 characters).');
         return false;
       }
 
       if (formData.password !== formData.confirmPassword) {
-        setError('Passwords do not match');
+        setError('Passwords do not match. Please try again.');
         return false;
       }
 
       if (formData.password.length < 6) {
-        setError('Password must be at least 6 characters long');
+        setError('Password must be at least 6 characters long.');
+        return false;
+      }
+
+      // Check for basic password requirements
+      if (!/(?=.*[a-zA-Z])(?=.*\d)/.test(formData.password)) {
+        setError('Password must contain at least one letter and one number.');
         return false;
       }
     }
@@ -78,7 +93,7 @@ export default function AuthForm({ mode, onToggleMode, onSuccess }: AuthFormProp
           password: formData.password,
           fullName: formData.fullName,
         });
-        setMessage('Account created successfully! Please check your email to verify your account.');
+        setMessage('Account created successfully! Please check your email to verify your account before signing in.');
       } else {
         await signIn({
           email: formData.email,
@@ -92,15 +107,22 @@ export default function AuthForm({ mode, onToggleMode, onSuccess }: AuthFormProp
       }
     } catch (error: any) {
       console.error('Auth error:', error);
-      setError(error.message || 'An error occurred. Please try again.');
+      setError(AuthService.getAuthErrorMessage(error));
     } finally {
       setLoading(false);
     }
   };
 
   const handleMagicLink = async () => {
+    // Enhanced validation for magic link
     if (!formData.email) {
-      setError('Email is required');
+      setError('Please enter your email address.');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setError('Please enter a valid email address.');
       return;
     }
 
@@ -110,10 +132,10 @@ export default function AuthForm({ mode, onToggleMode, onSuccess }: AuthFormProp
 
     try {
       await signInWithMagicLink(formData.email);
-      setMessage('Magic link sent! Check your email to sign in.');
+      setMessage('Magic link sent! Check your email and click the link to sign in.');
     } catch (error: any) {
       console.error('Magic link error:', error);
-      setError(error.message || 'Failed to send magic link. Please try again.');
+      setError(AuthService.getAuthErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -145,7 +167,7 @@ export default function AuthForm({ mode, onToggleMode, onSuccess }: AuthFormProp
             <CardDescription className="dark:text-gray-400">
               {mode === 'signin'
                 ? 'Enter your credentials to access your account'
-                : 'Create a new account to get started'
+                : 'Create a new account to get started. You\'ll need to verify your email before signing in.'
               }
             </CardDescription>
           </CardHeader>
@@ -218,6 +240,11 @@ export default function AuthForm({ mode, onToggleMode, onSuccess }: AuthFormProp
                     )}
                   </button>
                 </div>
+                {mode === 'signup' && (
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Password must be at least 6 characters with letters and numbers
+                  </p>
+                )}
               </div>
 
               {mode === 'signup' && (
@@ -253,8 +280,10 @@ export default function AuthForm({ mode, onToggleMode, onSuccess }: AuthFormProp
               )}
 
               {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
+                <Alert variant="destructive" className="border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800">
+                  <AlertDescription className="text-red-800 dark:text-red-200">
+                    {error}
+                  </AlertDescription>
                 </Alert>
               )}
 

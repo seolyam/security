@@ -184,6 +184,59 @@ export class AuthService {
     return supabase.auth.onAuthStateChange(callback);
   }
 
+  static getAuthErrorMessage(error: any): string {
+    if (!error) return 'An unexpected error occurred. Please try again.';
+
+    const message = error.message || error.toString();
+    const lowerMessage = message.toLowerCase();
+
+    // Handle specific Supabase auth errors
+    if (lowerMessage.includes('invalid login credentials') || lowerMessage.includes('invalid credentials')) {
+      return 'The email or password you entered is incorrect. Please check your credentials and try again.';
+    }
+
+    if (lowerMessage.includes('email not confirmed') || lowerMessage.includes('email address not confirmed')) {
+      return 'Please check your email and click the confirmation link before signing in.';
+    }
+
+    if (lowerMessage.includes('user not found') || lowerMessage.includes('no user found')) {
+      return 'No account found with this email address. Please check your email or create a new account.';
+    }
+
+    if (lowerMessage.includes('too many requests') || lowerMessage.includes('rate limit')) {
+      return 'Too many login attempts. Please wait a few minutes before trying again.';
+    }
+
+    if (lowerMessage.includes('weak password') || lowerMessage.includes('password')) {
+      return 'Password must be at least 6 characters long and contain a mix of letters and numbers.';
+    }
+
+    if (lowerMessage.includes('signup') && lowerMessage.includes('disabled')) {
+      return 'Account registration is currently disabled. Please contact support.';
+    }
+
+    if (lowerMessage.includes('network') || lowerMessage.includes('connection') || lowerMessage.includes('fetch')) {
+      return 'Network error. Please check your internet connection and try again.';
+    }
+
+    if (lowerMessage.includes('timeout') || lowerMessage.includes('timed out')) {
+      return 'Request timed out. Please try again.';
+    }
+
+    if (lowerMessage.includes('email') && lowerMessage.includes('invalid')) {
+      return 'Please enter a valid email address.';
+    }
+
+    // Database-related errors
+    if (lowerMessage.includes('database') || lowerMessage.includes('schema')) {
+      return 'Database connection issue. Please try again in a moment or contact support if the problem persists.';
+    }
+
+    // Generic fallback with the original message for debugging
+    console.error('Unhandled auth error:', error);
+    return message.includes('Error:') ? message : `Authentication error: ${message}`;
+  }
+
   static async testDatabaseConnection() {
     try {
       console.log('🔍 Testing Supabase database connection...');

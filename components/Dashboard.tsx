@@ -22,8 +22,11 @@ import {
   FileText,
   RefreshCw,
   Eye,
-  Palette
+  Palette,
+  LogOut,
+  User
 } from 'lucide-react';
+import { useAuth } from '../lib/authProvider';
 import AnalyzerForm from './AnalyzerForm';
 import CloudHistoryPanel from './CloudHistoryPanel';
 import TrainingInterface from './TrainingInterface';
@@ -51,6 +54,16 @@ interface DashboardProps {
 export default function Dashboard({ initialTab = 'analyzer' }: DashboardProps) {
   const [activeTab, setActiveTab] = useState<TabType>(initialTab);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const { user, signOut } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
 
   const tabs = [
     { id: 'analyzer', label: 'Email Analyzer', icon: Search },
@@ -154,7 +167,34 @@ export default function Dashboard({ initialTab = 'analyzer' }: DashboardProps) {
 
           {/* Footer */}
           <div className="p-4 border-t dark:border-gray-700">
-            <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+            {/* User Profile Section */}
+            <div className="mb-4">
+              <div className="flex items-center gap-3 p-2 rounded-lg bg-gray-50 dark:bg-gray-700">
+                <div className="flex-shrink-0">
+                  <User className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                    {user?.user_metadata?.full_name || 'User'}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                    {user?.email}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleLogout}
+              className="w-full justify-start gap-2 text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/20"
+            >
+              <LogOut className="h-4 w-4" />
+              Sign Out
+            </Button>
+
+            <div className="text-xs text-gray-500 dark:text-gray-400 text-center mt-3">
               Cloud-Enabled Email Security Analysis
             </div>
           </div>
@@ -176,7 +216,17 @@ export default function Dashboard({ initialTab = 'analyzer' }: DashboardProps) {
             <Shield className="h-6 w-6 text-blue-600" />
             <span className="font-semibold dark:text-white">PhishingSense</span>
           </div>
-          <div className="w-8" /> {/* Spacer for centering */}
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              className="text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Content Area */}
