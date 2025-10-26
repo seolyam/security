@@ -107,6 +107,44 @@
     "dhl.com"
   ],
 
+  "trustedDomains": {
+    "core": [
+      "google.com",
+      "apple.com",
+      "microsoft.com",
+      "amazon.com",
+      "facebook.com",
+      "github.com"
+    ],
+    "financial": [
+      "paypal.com",
+      "chase.com",
+      "wellsfargo.com",
+      "bankofamerica.com",
+      "americanexpress.com",
+      "capitalone.com"
+    ],
+    "productivity": [
+      "notion.so",
+      "atlassian.com",
+      "slack.com",
+      "zoom.us"
+    ]
+  },
+
+  "trustedUrlPrefixes": [
+    "https://accounts.google.com",
+    "https://www.paypal.com",
+    "https://login.microsoftonline.com",
+    "https://auth.slack.com",
+    "https://id.atlassian.com",
+    "https://secure.chase.com",
+    "https://www.github.com",
+    "https://github.com",
+    "https://www.apple.com",
+    "https://support.apple.com"
+  ],
+
   "urlPatterns": {
     "shorteners": ["bit.ly", "tinyurl", "goo.gl", "t.co", "tiny.cc", "is.gd", "buff.ly", "shorte.st", "adf.ly", "bit.do"],
     "suspicious": ["login", "secure", "verify", "account", "bank", "paypal", "crypto", "wallet", "refund", "claim", "prize"],

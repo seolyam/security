@@ -43,9 +43,16 @@ export interface RuleResult {
 
 export class RuleEngine {
   private patterns: any;
+  private trustedDomainSet: Set<string>;
+  private trustedUrlPrefixes: string[];
 
   constructor() {
     this.patterns = patterns;
+    this.trustedDomainSet = new Set([
+      ...(this.patterns.legitimateDomains || []),
+      ...Object.values(this.patterns.trustedDomains || {}).flat()
+    ].map((d: string) => d.toLowerCase()));
+    this.trustedUrlPrefixes = (this.patterns.trustedUrlPrefixes || []).map((url: string) => url.toLowerCase());
   }
 
   async analyze(content: {
@@ -138,6 +145,18 @@ export class RuleEngine {
 
     urls.forEach((url, index) => {
       const lowerUrl = url.toLowerCase();
+
+      if (this.isTrustedUrl(lowerUrl)) {
+        findings.push({
+          id: `url-trusted-${index}`,
+          severity: 'low',
+          text: `Trusted URL detected: ${url}`,
+          meta: { url },
+          category: 'trusted'
+        });
+        return;
+      }
+
       let severity: 'low' | 'medium' | 'high' = 'low';
       let reason = '';
 
@@ -180,6 +199,17 @@ export class RuleEngine {
       const domain = email.split('@')[1];
       if (domain) {
         const lowerDomain = domain.toLowerCase();
+
+        if (this.isTrustedDomain(lowerDomain)) {
+          findings.push({
+            id: `domain-trusted-${index}`,
+            severity: 'low',
+            text: `Trusted sender domain recognized: ${domain}`,
+            meta: { domain, email },
+            category: 'trusted'
+          });
+          return;
+        }
 
         // Check if domain is in suspicious list
         if (this.patterns.suspiciousDomains.some((suspicious: string) => lowerDomain.includes(suspicious))) {
@@ -256,12 +286,18 @@ export class RuleEngine {
 
   private calculateUrlScore(findings: Finding[]): number {
     return findings.reduce((score, finding) => {
+      if (finding.category === 'trusted') {
+        return score;
+      }
       return score + (finding.severity === 'high' ? 30 : finding.severity === 'medium' ? 20 : 10);
     }, 0);
   }
 
   private calculateDomainScore(findings: Finding[]): number {
     return findings.reduce((score, finding) => {
+      if (finding.category === 'trusted') {
+        return score;
+      }
       return score + (finding.severity === 'high' ? 35 : finding.severity === 'medium' ? 25 : 15);
     }, 0);
   }
@@ -274,6 +310,26 @@ export class RuleEngine {
 
   private calculateHtmlScore(findings: Finding[]): number {
     return findings.length * 5; // Each HTML indicator adds 5 points
+  }
+
+  private isTrustedDomain(domain: string): boolean {
+    if (!domain) return false;
+    const normalized = domain.toLowerCase();
+    if (this.trustedDomainSet.has(normalized)) return true;
+
+    // Check parent domains (e.g., subdomain.example.com)
+    const parts = normalized.split('.');
+    for (let i = 1; i < parts.length - 1; i++) {
+      const candidate = parts.slice(i).join('.');
+      if (this.trustedDomainSet.has(candidate)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private isTrustedUrl(url: string): boolean {
+    return this.trustedUrlPrefixes.some(prefix => url.startsWith(prefix));
   }
 
   getPatterns() {

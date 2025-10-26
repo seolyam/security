@@ -15,12 +15,20 @@ export interface HeaderResult {
     dmarcStatus?: string;
     receivedCount: number;
     suspiciousHeaders: number;
+    authPositiveBonus?: number;
+    authSummary?: {
+      spfPassed: boolean;
+      dkimPassed: boolean;
+      dmarcPassed: boolean;
+      totalBonus: number;
+    };
   };
 }
 
 export class HeaderEngine {
   async analyze(headersText: string): Promise<HeaderResult> {
     const findings: HeaderResult['findings'] = [];
+    let positiveBonus = 0;
 
     if (!headersText.trim()) {
       return {
@@ -38,6 +46,12 @@ export class HeaderEngine {
       const headerAnalysis = analyzeEmailHeaders(parsedHeaders);
 
       let score = 0;
+      const authSummary = {
+        spfPassed: false,
+        dkimPassed: false,
+        dmarcPassed: false,
+        totalBonus: 0
+      };
 
       // SPF Analysis
       if (headerAnalysis.spf) {
@@ -50,6 +64,16 @@ export class HeaderEngine {
             category: 'authentication'
           });
           score += 35;
+        } else if (headerAnalysis.spf.status === 'pass') {
+          findings.push({
+            id: 'spf-pass',
+            severity: 'low',
+            text: 'SPF authentication passed',
+            meta: { spf: headerAnalysis.spf },
+            category: 'authentication-positive'
+          });
+          positiveBonus += 10;
+          authSummary.spfPassed = true;
         } else if (headerAnalysis.spf.status === 'softfail') {
           findings.push({
             id: 'spf-softfail',
@@ -73,6 +97,16 @@ export class HeaderEngine {
             category: 'authentication'
           });
           score += 35;
+        } else if (headerAnalysis.dkim.status === 'pass') {
+          findings.push({
+            id: 'dkim-pass',
+            severity: 'low',
+            text: 'DKIM signature verified',
+            meta: { dkim: headerAnalysis.dkim },
+            category: 'authentication-positive'
+          });
+          positiveBonus += 10;
+          authSummary.dkimPassed = true;
         }
       }
 
@@ -87,6 +121,16 @@ export class HeaderEngine {
             category: 'authentication'
           });
           score += 25;
+        } else if (headerAnalysis.dmarc.status === 'pass') {
+          findings.push({
+            id: 'dmarc-pass',
+            severity: 'low',
+            text: 'DMARC policy passed',
+            meta: { dmarc: headerAnalysis.dmarc },
+            category: 'authentication-positive'
+          });
+          positiveBonus += 8;
+          authSummary.dmarcPassed = true;
         }
       }
 
@@ -136,15 +180,19 @@ export class HeaderEngine {
         }
       }
 
+      authSummary.totalBonus = positiveBonus;
+
       return {
-        score: Math.min(100, score),
+        score: Math.min(100, Math.max(0, score - positiveBonus)),
         findings,
         details: {
           spfStatus: headerAnalysis.spf?.status,
           dkimStatus: headerAnalysis.dkim?.status,
           dmarcStatus: headerAnalysis.dmarc?.status,
           receivedCount: headerAnalysis.received?.count || 0,
-          suspiciousHeaders: headerAnalysis.suspiciousHeaders?.length || 0
+          suspiciousHeaders: headerAnalysis.suspiciousHeaders?.length || 0,
+          authPositiveBonus: positiveBonus,
+          authSummary
         }
       };
 

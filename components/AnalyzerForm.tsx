@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { analyzeEmailV2 } from '../lib/ruleEngine';
 import { generateEnhancedJSON, generateEnhancedPDF } from '../lib/enhancedExport';
 import { Button } from './ui/button';
@@ -22,6 +22,9 @@ import CloudHistoryPanel from './CloudHistoryPanel';
 import { useAuth } from '../lib/authProvider';
 import { ScanService } from '../lib/services/scanService';
 import { useTheme } from '../lib/themeProvider';
+import LegitimacyChecklist from './LegitimacyChecklist';
+import { getLegitimacySnapshot, isSenderTrusted, recordTrustedSender } from '../lib/services/trustedService';
+import { OfflineLearningManager } from '../lib/offlineLearning';
 
 export default function AnalyzerForm() {
   const [formData, setFormData] = useState({
@@ -38,8 +41,29 @@ export default function AnalyzerForm() {
   const [isExporting, setIsExporting] = useState(false);
   const [showVisualization, setShowVisualization] = useState(true);
   const [explanationModal, setExplanationModal] = useState<{ isOpen: boolean; finding?: any }>({ isOpen: false });
+  const [isTrustedSender, setIsTrustedSender] = useState(false);
+  const [legitimacySnapshot, setLegitimacySnapshot] = useState<any>(null);
+  const [savingLegitimate, setSavingLegitimate] = useState(false);
+  const [legitimateSaved, setLegitimateSaved] = useState(false);
   const { theme } = useTheme();
   const { user } = useAuth();
+
+  useEffect(() => {
+    setIsTrustedSender(isSenderTrusted(formData.from, { userId: user?.id }));
+  }, [formData.from, user?.id]);
+
+  useEffect(() => {
+    if (!result) {
+      setLegitimacySnapshot(null);
+      return;
+    }
+    setIsTrustedSender(isSenderTrusted(formData.from, { userId: user?.id }));
+    setLegitimacySnapshot(getLegitimacySnapshot({
+      sender: formData.from,
+      analysis: result,
+      userId: user?.id
+    }));
+  }, [result, formData.from, user?.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,6 +80,7 @@ export default function AnalyzerForm() {
         sensitivity: 'medium'
       });
       setResult(analysis);
+      setLegitimateSaved(false);
 
       // Save to cloud if user is authenticated
       if (user) {
@@ -89,6 +114,8 @@ export default function AnalyzerForm() {
   const resetForm = () => {
     setFormData({ from: '', subject: '', body: '', headers: '' });
     setResult(null);
+    setLegitimacySnapshot(null);
+    setLegitimateSaved(false);
   };
 
   const handleLoadAnalysis = (item: any) => {
@@ -100,6 +127,43 @@ export default function AnalyzerForm() {
     });
     setResult(item.analysis);
     setShowHistory(false);
+  };
+
+  const handleMarkLegitimate = async () => {
+    if (!result) return;
+    setSavingLegitimate(true);
+    try {
+      recordTrustedSender({
+        sender: formData.from,
+        subject: formData.subject,
+        userId: user?.id,
+        authSnapshot: {
+          spfPassed: result?.breakdown?.headers?.details?.spfStatus === 'pass',
+          dkimPassed: result?.breakdown?.headers?.details?.dkimStatus === 'pass',
+          dmarcPassed: result?.breakdown?.headers?.details?.dmarcStatus === 'pass'
+        }
+      });
+
+      const offlineManager = OfflineLearningManager.getInstance();
+      await offlineManager.initialize();
+      offlineManager.addSample(
+        { subject: formData.subject, body: formData.body, from: formData.from },
+        'safe',
+        { source: 'trusted-confirmation' }
+      );
+
+      setLegitimateSaved(true);
+      setIsTrustedSender(true);
+      setLegitimacySnapshot(getLegitimacySnapshot({
+        sender: formData.from,
+        analysis: result,
+        userId: user?.id
+      }));
+    } catch (error) {
+      console.error('Failed to mark sender as legitimate:', error);
+    } finally {
+      setSavingLegitimate(false);
+    }
   };
 
   const handleExportJSON = () => {
@@ -292,6 +356,15 @@ export default function AnalyzerForm() {
                 score={result.score}
                 breakdown={result.breakdown}
                 showBreakdown={true}
+              />
+
+              <LegitimacyChecklist
+                analysis={result}
+                snapshot={legitimacySnapshot}
+                isTrustedSender={isTrustedSender}
+                onMarkLegitimate={handleMarkLegitimate}
+                markDisabled={savingLegitimate}
+                showSavedState={legitimateSaved}
               />
 
               {/* Export Options */}

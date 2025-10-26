@@ -12,6 +12,7 @@ import {
   Menu,
   X,
   Shield,
+  ShieldCheck,
   TrendingUp,
   AlertTriangle,
   CheckCircle,
@@ -44,8 +45,9 @@ import ExplanationModal from './ExplanationModal';
 import RiskRadarChart from './RiskRadarChart';
 import EnhancedEmailHighlighter from './EnhancedEmailHighlighter';
 import ThemeToggle from './ThemeToggle';
+import TrustedInsightsTab from './TrustedInsightsTab';
 
-type TabType = 'analyzer' | 'history' | 'settings' | 'about' | 'training' | 'analytics' | 'demo' | 'reports' | 'updates' | 'privacy' | 'education' | 'comparison';
+type TabType = 'analyzer' | 'history' | 'settings' | 'about' | 'training' | 'analytics' | 'demo' | 'reports' | 'updates' | 'privacy' | 'education' | 'comparison' | 'trust';
 
 interface DashboardProps {
   initialTab?: TabType;
@@ -70,6 +72,7 @@ export default function Dashboard({ initialTab = 'analyzer' }: DashboardProps) {
     { id: 'demo', label: 'Demo Emails', icon: FileText },
     { id: 'comparison', label: 'Email Comparison', icon: GitCompare },
     { id: 'education', label: 'Learn & Quiz', icon: BookOpen },
+    { id: 'trust', label: 'Trusted Senders', icon: ShieldCheck },
     { id: 'history', label: 'Analysis History', icon: History },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'training', label: 'AI Training', icon: Brain },
@@ -106,6 +109,8 @@ export default function Dashboard({ initialTab = 'analyzer' }: DashboardProps) {
         return <SettingsTab />;
       case 'about':
         return <AboutTab />;
+      case 'trust':
+        return <TrustedInsightsTab />;
       default:
         return <AnalyzerForm />;
     }

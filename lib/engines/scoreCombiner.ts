@@ -2,6 +2,7 @@ import patterns from '../data/patterns.json';
 import { RuleEngine, RuleResult } from './ruleEngine';
 import { HeaderEngine, HeaderResult } from './headerEngine';
 import { MLEngine, MLResult, MLConfig } from './mlEngine';
+import { isSenderTrusted } from '../services/trustedService';
 
 export interface AnalysisResult {
   score: number;
@@ -137,11 +138,18 @@ export class ScoreCombiner {
     const sensitivityMultiplier = this.getSensitivityMultiplier(this.config.sensitivity);
     combinedScore *= sensitivityMultiplier;
 
+    const trustAdjustments = this.computeTrustAdjustments(content, headerResult, mlResult);
+    if (trustAdjustments.bonus > 0) {
+      combinedScore = Math.max(0, combinedScore - trustAdjustments.bonus);
+      breakdown.misc.score = trustAdjustments.bonus;
+    }
+
     // Combine all findings
     const allFindings = [
       ...ruleResult.findings,
       ...headerResult.findings,
-      ...mlResult.findings
+      ...mlResult.findings,
+      ...trustAdjustments.findings
     ];
 
     breakdown.rules.percentage = activeWeight > 0 && breakdown.rules.percentage > 0
@@ -176,6 +184,49 @@ export class ScoreCombiner {
       case 'low': return 0.8;
       default: return 1.0;
     }
+  }
+
+  private computeTrustAdjustments(content: { from?: string; headers?: string }, headerResult: HeaderResult, mlResult: MLResult) {
+    let bonus = 0;
+    const findings: AnalysisResult['findings'] = [];
+
+    const senderTrusted = isSenderTrusted(content.from);
+    if (senderTrusted) {
+      bonus += 15;
+      findings.push({
+        id: 'trusted-sender',
+        severity: 'low',
+        text: 'Sender previously confirmed as legitimate',
+        category: 'trusted'
+      });
+    }
+
+    const headerBonus = headerResult.details?.authPositiveBonus || 0;
+    if (headerBonus > 0) {
+      bonus += Math.min(20, headerBonus);
+      findings.push({
+        id: 'auth-positive',
+        severity: 'low',
+        text: 'All authentication checks passed',
+        meta: headerResult.details?.authSummary,
+        category: 'authentication-positive'
+      });
+    }
+
+    if (mlResult.score < 40 && mlResult.confidence >= 0.6) {
+      bonus += 10;
+      findings.push({
+        id: 'ml-safe-indicator',
+        severity: 'low',
+        text: 'ML model indicates low phishing probability',
+        meta: { mlScore: mlResult.score, confidence: mlResult.confidence },
+        category: 'ml-positive'
+      });
+    }
+
+    bonus = Math.min(45, bonus);
+
+    return { bonus, findings };
   }
 
   updateConfig(config: Partial<AnalysisConfig>): void {
