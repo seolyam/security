@@ -1,13 +1,14 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { AlertTriangle, Brain, CheckCircle, RotateCcw, Download, Upload } from 'lucide-react';
-import { OfflineLearningManager } from '../lib/offlineLearning';
-import { MLRetrainer, TrainingResult } from '../lib/mlRetrainer';
+import { OfflineLearningManager, type LabeledSample } from '../lib/offlineLearning';
+import { MLRetrainer, type TrainingResult } from '../lib/mlRetrainer';
+
+type ModelInfo = ReturnType<MLRetrainer['getModelInfo']>;
 
 interface TrainingInterfaceProps {
   onTrainingComplete?: (result: TrainingResult) => void;
@@ -21,22 +22,22 @@ export default function TrainingInterface({
   const [isTraining, setIsTraining] = useState(false);
   const [trainingProgress, setTrainingProgress] = useState(0);
   const [trainingResult, setTrainingResult] = useState<TrainingResult | null>(null);
-  const [samples, setSamples] = useState<any[]>([]);
-  const [modelInfo, setModelInfo] = useState<any>(null);
+  const [samples, setSamples] = useState<LabeledSample[]>([]);
+  const [modelInfo, setModelInfo] = useState<ModelInfo>(null);
   const [error, setError] = useState<string | null>(null);
 
   const learningManager = OfflineLearningManager.getInstance();
   const retrainer = MLRetrainer.getInstance();
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     await learningManager.initialize();
     setSamples(learningManager.getAllSamples());
     setModelInfo(retrainer.getModelInfo());
-  };
+  }, [learningManager, retrainer]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
 
   const handleStartTraining = async () => {
     if (!learningManager.hasEnoughSamples()) {

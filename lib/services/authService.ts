@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import type { User } from '@supabase/supabase-js';
+import type { User, Session } from '@supabase/supabase-js';
 
 export interface AuthUser extends User {
   user_metadata: {
@@ -15,6 +15,9 @@ export interface LoginCredentials {
 export interface SignupCredentials extends LoginCredentials {
   fullName?: string;
 }
+
+const normalizeError = (error: unknown): Error =>
+  error instanceof Error ? error : new Error(String(error));
 
 export class AuthService {
   static async signUp({ email, password, fullName }: SignupCredentials) {
@@ -75,8 +78,9 @@ export class AuthService {
           // Pass the user object directly instead of relying on getUser()
           await this.createUserProfile(data.user.id, email, fullName, data.user);
           console.log('✅ User profile created successfully');
-        } catch (profileError: any) {
-          console.error('⚠️ Profile creation failed after successful signup:', profileError);
+        } catch (profileError) {
+          const normalizedProfileError = normalizeError(profileError);
+          console.error('⚠️ Profile creation failed after successful signup:', normalizedProfileError);
 
           // Don't fail the entire signup if profile creation fails
           // The user can still sign in, we just won't have their profile
@@ -85,14 +89,15 @@ export class AuthService {
       }
 
       return data;
-    } catch (error: any) {
+    } catch (error) {
+      const normalized = normalizeError(error);
       console.error('💥 Signup process failed:', {
-        error: error?.message || error,
+        error: normalized.message,
         email,
         fullName,
-        stack: error?.stack
+        stack: normalized.stack
       });
-      throw error;
+      throw normalized;
     }
   }
 
@@ -180,14 +185,15 @@ export class AuthService {
     return data;
   }
 
-  static onAuthStateChange(callback: (event: string, session: any) => void) {
+  static onAuthStateChange(callback: (event: string, session: Session | null) => void) {
     return supabase.auth.onAuthStateChange(callback);
   }
 
-  static getAuthErrorMessage(error: any): string {
-    if (!error) return 'An unexpected error occurred. Please try again.';
+  static getAuthErrorMessage(error: unknown): string {
+    const normalized = normalizeError(error);
+    if (!normalized) return 'An unexpected error occurred. Please try again.';
 
-    const message = error.message || error.toString();
+    const message = normalized.message || String(normalized);
     const lowerMessage = message.toLowerCase();
 
     // Handle specific Supabase auth errors
@@ -233,7 +239,7 @@ export class AuthService {
     }
 
     // Generic fallback with the original message for debugging
-    console.error('Unhandled auth error:', error);
+    console.error('Unhandled auth error:', normalized);
     return message.includes('Error:') ? message : `Authentication error: ${message}`;
   }
 
@@ -242,7 +248,7 @@ export class AuthService {
       console.log('🔍 Testing Supabase database connection...');
 
       // Test 1: Basic connection by trying to query a non-existent table (should give us error details)
-      const { data: authTest, error: authError } = await supabase.auth.getSession();
+      const { error: authError } = await supabase.auth.getSession();
 
       if (authError) {
         console.error('❌ Auth connection test failed:', authError);
@@ -308,15 +314,16 @@ export class AuthService {
         data,
         message: 'Database connection working properly'
       };
-    } catch (error: any) {
+    } catch (error) {
+      const normalized = normalizeError(error);
       console.error('💥 Database connection test crashed:', {
-        error: error?.message || error,
-        stack: error?.stack
+        error: normalized.message,
+        stack: normalized.stack
       });
 
       return {
         success: false,
-        error,
+        error: normalized,
         message: 'Database connection test failed completely. Please check your configuration.',
         action: 'check_config'
       };
@@ -340,13 +347,14 @@ export class AuthService {
 
       // Profile doesn't exist, create it
       await this.createUserProfile(userId, email, fullName);
-    } catch (error: any) {
+    } catch (error) {
+      const normalized = normalizeError(error);
       console.error('Failed to ensure user profile:', {
-        error: error?.message || error,
+        error: normalized.message,
         userId,
         email
       });
-      throw error;
+      throw normalized;
     }
   }
 
@@ -362,12 +370,13 @@ export class AuthService {
       if (!existingSettings) {
         await this.createDefaultSettings(userId);
       }
-    } catch (error: any) {
+    } catch (error) {
+      const normalized = normalizeError(error);
       console.error('Failed to ensure user settings:', {
-        error: error?.message || error,
+        error: normalized.message,
         userId
       });
-      throw error;
+      throw normalized;
     }
   }
 
@@ -469,16 +478,17 @@ private static async createUserProfile(userId: string, email: string, fullName?:
     // Also create default settings
     await this.createDefaultSettings(userId);
     return data;
-  } catch (error: any) {
+  } catch (error) {
+    const normalized = normalizeError(error);
     console.error('💥 Failed to create user profile:', {
-      error: error?.message || error,
+      error: normalized.message,
       userId,
       email,
       fullName,
-      stack: error?.stack,
+      stack: normalized.stack,
       errorType: typeof error
     });
-    throw error;
+    throw normalized;
   }
 }
 
@@ -529,9 +539,10 @@ private static async createUserProfile(userId: string, email: string, fullName?:
 
       console.log('✅ User settings created successfully:', data);
       return data;
-    } catch (error: any) {
+    } catch (error) {
+      const normalized = normalizeError(error);
       console.error('💥 Failed to create default settings:', {
-        error: error?.message || error,
+        error: normalized.message,
         userId
       });
       // Don't throw here - settings are optional
@@ -541,7 +552,7 @@ private static async createUserProfile(userId: string, email: string, fullName?:
 
   // Browser console debugging function (call this from browser console)
   static async debugConnection() {
-    console.log('🔧 PhishingSense Database Debug Tool');
+    console.log('🔧 Phishsense Database Debug Tool');
     console.log('=====================================');
 
     const test = await this.testDatabaseConnection();

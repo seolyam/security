@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Badge } from './ui/badge';
 import { Eye, GitCompare, AlertTriangle, CheckCircle, RotateCcw } from 'lucide-react';
 import EnhancedEmailHighlighter from './EnhancedEmailHighlighter';
+import type { Finding } from '../lib/ruleEngine';
 
 interface EmailComparison {
   id: string;
@@ -15,7 +16,7 @@ interface EmailComparison {
   body: string;
   isPhishing: boolean;
   riskScore: number;
-  findings: any[];
+  findings: Finding[];
 }
 
 const sampleEmails: EmailComparison[] = [
@@ -91,7 +92,7 @@ export default function EmailComparison({ className = '' }: EmailComparisonProps
   };
 
   const getRiskBadge = (score: number, isPhishing: boolean) => {
-    const variant = score < 30 ? 'default' : score < 70 ? 'secondary' : 'destructive';
+    const variant = score < 35 ? 'default' : score < 60 ? 'secondary' : 'destructive';
     const label = isPhishing ? 'Phishing' : 'Legitimate';
     return <Badge variant={variant}>{label} ({score}%)</Badge>;
   };

@@ -1,12 +1,11 @@
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 export interface AnalysisResult {
   findings: Array<{
     id: string;
     severity: 'low' | 'medium' | 'high';
     text: string;
-    meta?: any;
+    meta?: Record<string, unknown>;
     startIndex?: number;
     endIndex?: number;
   }>;
@@ -46,8 +45,7 @@ export const exportToJSON = (email: EmailData, analysis: AnalysisResult): void =
 
 export const exportToPDF = async (
   email: EmailData,
-  analysis: AnalysisResult,
-  elementId?: string
+  analysis: AnalysisResult
 ): Promise<void> => {
   try {
     const pdf = new jsPDF();

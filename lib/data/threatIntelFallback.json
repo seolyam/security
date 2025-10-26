@@ -1,0 +1,17 @@
+{
+  "lastUpdated": "2024-11-01T00:00:00Z",
+  "maliciousDomains": [
+    "paypal-secure.com",
+    "bankofamerica-secure.com",
+    "login-appleid-support.com",
+    "microsoft-update-security.com",
+    "account-verification-alert.com",
+    "secure-chasebank.com"
+  ],
+  "maliciousUrls": [
+    "https://paypal-secure.com/verify",
+    "https://bankofamerica-secure.com/login",
+    "https://secure-chasebank.com/update",
+    "https://login-appleid-support.com/auth"
+  ]
+}

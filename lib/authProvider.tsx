@@ -2,7 +2,8 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AuthService, type AuthUser } from './services/authService';
-import { SettingsService } from './services/settingsService';
+import { SettingsService, type SettingsData } from './services/settingsService';
+import type { UserSettings } from './supabase';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -13,8 +14,8 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
-  userSettings: any;
-  updateSettings: (settings: any) => Promise<void>;
+  userSettings: UserSettings | null;
+  updateSettings: (settings: Partial<SettingsData>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,7 +23,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [userSettings, setUserSettings] = useState<any>(null);
+  const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
 
   useEffect(() => {
     // Get initial session
@@ -32,8 +33,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = AuthService.onAuthStateChange(async (event: string, session: any) => {
-      setUser(session?.user as AuthUser || null);
+    const { data: { subscription } } = AuthService.onAuthStateChange(async (_event, session) => {
+      setUser((session?.user as AuthUser) || null);
       setLoading(false);
 
       // Load user settings when user logs in
@@ -86,14 +87,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       await AuthService.signUp(credentials);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setLoading(false);
 
       // Enhanced error logging for debugging
       console.error('❌ Signup failed:', error);
 
       // If it's a database-related error, suggest running the debug tool
-      if (error.message?.includes('database') || error.message?.includes('schema')) {
+      if (error instanceof Error && (error.message.includes('database') || error.message.includes('schema'))) {
         console.log('💡 Try running: await AuthService.debugConnection() in the browser console for detailed diagnostics');
       }
 
@@ -134,7 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const updateSettings = async (settings: any) => {
+  const updateSettings = async (settings: Partial<SettingsData>) => {
     if (!user) return;
 
     try {

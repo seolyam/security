@@ -3,12 +3,12 @@
 import React from 'react';
 import { Button } from './ui/button';
 import { Sun, Moon, Monitor, Palette } from 'lucide-react';
-import { useTheme } from '../lib/themeProvider';
+import { useTheme, type Theme } from '../lib/themeProvider';
 
 export default function ThemeToggle() {
-  const { theme, setTheme, resolvedTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
 
-  const themes = [
+  const themes: Array<{ value: Theme; label: string; icon: typeof Sun }> = [
     { value: 'light', label: 'Light', icon: Sun },
     { value: 'dark', label: 'Dark', icon: Moon },
     { value: 'system', label: 'System', icon: Monitor }
@@ -27,7 +27,7 @@ export default function ThemeToggle() {
               key={themeOption.value}
               variant="ghost"
               size="sm"
-              onClick={() => setTheme(themeOption.value as any)}
+              onClick={() => setTheme(themeOption.value)}
               className={`h-8 px-2 text-xs border-0 rounded-none first:rounded-l-md last:rounded-r-md ${
                 isActive
                   ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'

@@ -1,6 +1,24 @@
 import { supabase } from '../supabase';
 import type { Pattern } from '../supabase';
 
+export interface PatternStats {
+  total: number;
+  byCategory: Record<string, number>;
+  bySeverity: {
+    low: number;
+    medium: number;
+    high: number;
+  };
+}
+
+export interface RuleEnginePatternCategory {
+  weight: number;
+  severity: 'low' | 'medium' | 'high';
+  patterns: string[];
+}
+
+export type RuleEnginePatternMap = Record<string, RuleEnginePatternCategory>;
+
 export interface PatternData {
   keyword: string;
   category: string;
@@ -31,7 +49,7 @@ export class PatternService {
     return data || [];
   }
 
-  static async createPattern(patternData: PatternData) {
+  static async createPattern(patternData: PatternData): Promise<Pattern> {
     const { data, error } = await supabase
       .from('patterns')
       .insert({
@@ -45,10 +63,10 @@ export class PatternService {
       .single();
 
     if (error) throw error;
-    return data;
+    return data as Pattern;
   }
 
-  static async updatePattern(patternId: string, updates: Partial<PatternData>) {
+  static async updatePattern(patternId: string, updates: Partial<PatternData>): Promise<Pattern> {
     const { data, error } = await supabase
       .from('patterns')
       .update({
@@ -64,7 +82,7 @@ export class PatternService {
       .single();
 
     if (error) throw error;
-    return data;
+    return data as Pattern;
   }
 
   static async deletePattern(patternId: string) {
@@ -88,7 +106,7 @@ export class PatternService {
     return data || [];
   }
 
-  static async getPatternStats() {
+  static async getPatternStats(): Promise<PatternStats> {
     const { data, error } = await supabase
       .from('patterns')
       .select('category, severity, is_active')
@@ -96,9 +114,11 @@ export class PatternService {
 
     if (error) throw error;
 
-    const stats = {
-      total: data?.length || 0,
-      byCategory: {} as Record<string, number>,
+    const patterns = (data ?? []) as Array<Pick<Pattern, 'category' | 'severity' | 'is_active'>>;
+
+    const stats: PatternStats = {
+      total: patterns.length,
+      byCategory: {},
       bySeverity: {
         low: 0,
         medium: 0,
@@ -106,12 +126,13 @@ export class PatternService {
       },
     };
 
-    data?.forEach(pattern => {
+    patterns.forEach(pattern => {
       // Count by category
-      stats.byCategory[pattern.category] = (stats.byCategory[pattern.category] || 0) + 1;
+      const category = pattern.category ?? 'uncategorized';
+      stats.byCategory[category] = (stats.byCategory[category] || 0) + 1;
 
       // Count by severity
-      if (pattern.severity) {
+      if (pattern.severity && pattern.severity in stats.bySeverity) {
         stats.bySeverity[pattern.severity as keyof typeof stats.bySeverity]++;
       }
     });
@@ -120,18 +141,19 @@ export class PatternService {
   }
 
   // Convert Supabase patterns to the format expected by the rule engine
-  static convertToRuleEngineFormat(patterns: Pattern[]) {
-    const result: Record<string, any> = {};
+  static convertToRuleEngineFormat(patterns: Pattern[]): RuleEnginePatternMap {
+    const result: RuleEnginePatternMap = {};
 
-    patterns.forEach(pattern => {
-      if (!result[pattern.category]) {
-        result[pattern.category] = {
+    patterns.forEach((pattern: Pattern) => {
+      const category = pattern.category || 'uncategorized';
+      if (!result[category]) {
+        result[category] = {
           weight: pattern.weight,
-          severity: pattern.severity,
+          severity: pattern.severity ?? 'medium',
           patterns: [],
         };
       }
-      result[pattern.category].patterns.push(pattern.keyword);
+      result[category].patterns.push(pattern.keyword);
     });
 
     return result;

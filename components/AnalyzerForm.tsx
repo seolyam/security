@@ -8,24 +8,165 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import { Progress } from './ui/progress';
-import { Badge } from './ui/badge';
-import { AlertTriangle, CheckCircle, AlertCircle, Download, FileText, History, Eye, Brain, Settings, ChevronDown, ChevronUp } from 'lucide-react';
+import { AlertTriangle, CheckCircle, AlertCircle, Download, FileText, History, ChevronDown, ChevronUp } from 'lucide-react';
 import ConfidenceGauge from './ConfidenceGauge';
 import LabelingInterface from './LabelingInterface';
 import ExplanationModal from './ExplanationModal';
 import RiskRadarChart from './RiskRadarChart';
 import EnhancedEmailHighlighter from './EnhancedEmailHighlighter';
 import SafetyTipsCarousel from './SafetyTipsCarousel';
-import PhishingQuiz from './PhishingQuiz';
 import CloudHistoryPanel from './CloudHistoryPanel';
 import { useAuth } from '../lib/authProvider';
 import { ScanService } from '../lib/services/scanService';
-import { useTheme } from '../lib/themeProvider';
 import LegitimacyChecklist from './LegitimacyChecklist';
-import { getLegitimacySnapshot, isSenderTrusted, recordTrustedSender } from '../lib/services/trustedService';
-import { recordBehaviorInteraction } from '../lib/services/behaviorService';
+import { getLegitimacySnapshot, isSenderTrusted, recordTrustedSender, syncTrustedRecordsFromRemote, type LegitimacySnapshot } from '../lib/services/trustedService';
+import { recordBehaviorInteraction, syncBehaviorSignalsFromRemote } from '../lib/services/behaviorService';
 import { OfflineLearningManager } from '../lib/offlineLearning';
+import type { AnalysisResult } from '../lib/engines/scoreCombiner';
+import type { Finding } from '../lib/ruleEngine';
+import type { AnalysisHistoryItem } from '../lib/historyUtils';
+
+const normalizeRiskLevel = (value: string): AnalysisResult['riskLevel'] => {
+  if (value === 'Low' || value === 'Medium' || value === 'High') {
+    return value;
+  }
+  const lower = value.toLowerCase();
+  if (lower === 'low') return 'Low';
+  if (lower === 'high') return 'High';
+  return 'Medium';
+};
+
+const createHistoryBreakdown = (score: number): AnalysisResult['breakdown'] => ({
+  rules: {
+    score,
+    percentage: 100,
+    details: {
+      keywordScore: score,
+      urlScore: 0,
+      domainScore: 0,
+      attachmentScore: 0,
+      htmlScore: 0
+    }
+  },
+  headers: {
+    score: 0,
+    percentage: 0,
+    details: {
+      spfStatus: undefined,
+      dkimStatus: undefined,
+      dmarcStatus: undefined,
+      receivedCount: 0,
+      suspiciousHeaders: 0,
+      authPositiveBonus: 0,
+      authSummary: {
+        spfPassed: false,
+        dkimPassed: false,
+        dmarcPassed: false,
+        totalBonus: 0
+      }
+    }
+  },
+  reputation: {
+    score: 0,
+    percentage: 0,
+    details: {
+      emailAddress: null,
+      domain: null,
+      displayName: null,
+      matchedBrand: null,
+      lookalikeDistance: null,
+      suspiciousTokens: []
+    }
+  },
+  behavior: {
+    score: 0,
+    percentage: 0,
+    bonus: 0,
+    details: {
+      totalInteractions: 0,
+      phishingInteractions: 0,
+      safeInteractions: 0,
+      suspiciousInteractions: 0,
+      daysSinceLastInteraction: null,
+      isFirstInteraction: true,
+      firstSeen: undefined,
+      lastSeen: undefined,
+      trustedSender: false
+    }
+  },
+  ml: {
+    score: 0,
+    percentage: 0,
+    confidence: 0,
+    modelUsed: 'history'
+  },
+  misc: {
+    score: 0,
+    percentage: 0
+  }
+});
+
+const SAMPLE_EMAILS = [
+  {
+    id: 'safe-team-update',
+    label: 'Safe • Team Standup Reminder',
+    from: 'alice@company.com',
+    subject: 'Reminder: Monday Standup Notes',
+    body: `Hi team,
+
+Thanks again for the productive standup this morning. Please review the notes below and add any blockers before 3pm.
+
+• Sprint burndown is on track
+• Please ship feedback on the billing flows
+• Security training reminder for Thursday
+
+Best,
+Alice`
+  },
+  {
+    id: 'phish-paypal',
+    label: 'Phishing • Fake PayPal Verification',
+    from: 'service@paypal-secure.com',
+    subject: 'Immediate action required: Verify your PayPal account!',
+    body: `Dear Customer,
+
+We detected suspicious activity on your PayPal account. To avoid suspension, you must verify your identity within 12 hours.
+
+Click the secure link below to confirm your information:
+https://paypal-secure.com/verify
+
+Failure to act will result in limited account access.
+
+Sincerely,
+PayPal Security`
+  },
+  {
+    id: 'suspicious-delivery',
+    label: 'Suspicious • Delivery Fee Request',
+    from: 'updates@fastparcel-alerts.com',
+    subject: 'Your package is waiting – confirm delivery fee',
+    body: `Hello,
+
+We attempted to deliver a parcel to your address, but a delivery fee is outstanding.
+
+Please settle the $3.50 delivery charge to release your package:
+http://fastparcel-alerts.com/pay
+
+Kind regards,
+FastParcel Service`
+  }
+] as const;
+
+const ANALYSIS_TIMEOUT_MS = 15000;
+
+const mapHistoryItemToAnalysisResult = (item: AnalysisHistoryItem): AnalysisResult => ({
+  score: item.analysis.score,
+  riskLevel: normalizeRiskLevel(item.analysis.riskLevel),
+  summary: item.analysis.summary,
+  findings: item.analysis.findings,
+  breakdown: createHistoryBreakdown(item.analysis.score),
+  processingTime: 0
+});
 
 export default function AnalyzerForm() {
   const [formData, setFormData] = useState({
@@ -34,44 +175,64 @@ export default function AnalyzerForm() {
     body: '',
     headers: '',
   });
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<AnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [useML, setUseML] = useState(false);
   const [showHeaders, setShowHeaders] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [showVisualization, setShowVisualization] = useState(true);
-  const [explanationModal, setExplanationModal] = useState<{ isOpen: boolean; finding?: any }>({ isOpen: false });
+  const [explanationModal, setExplanationModal] = useState<{ isOpen: boolean; finding?: Finding }>(() => ({ isOpen: false }));
   const [isTrustedSender, setIsTrustedSender] = useState(false);
-  const [legitimacySnapshot, setLegitimacySnapshot] = useState<any>(null);
+  const [legitimacySnapshot, setLegitimacySnapshot] = useState<LegitimacySnapshot | null>(null);
   const [savingLegitimate, setSavingLegitimate] = useState(false);
   const [legitimateSaved, setLegitimateSaved] = useState(false);
-  const { theme } = useTheme();
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { user } = useAuth();
+  const senderAddress = formData.from;
 
   useEffect(() => {
-    setIsTrustedSender(isSenderTrusted(formData.from, { userId: user?.id }));
-  }, [formData.from, user?.id]);
+    setIsTrustedSender(isSenderTrusted(senderAddress, { userId: user?.id }));
+  }, [senderAddress, user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let isActive = true;
+    (async () => {
+      await Promise.all([
+        syncTrustedRecordsFromRemote(user.id),
+        syncBehaviorSignalsFromRemote(user.id)
+      ]);
+      if (isActive) {
+        setIsTrustedSender(isSenderTrusted(senderAddress, { userId: user.id }));
+      }
+    })();
+    return () => {
+      isActive = false;
+    };
+  }, [senderAddress, user?.id]);
 
   useEffect(() => {
     if (!result) {
       setLegitimacySnapshot(null);
       return;
     }
-    setIsTrustedSender(isSenderTrusted(formData.from, { userId: user?.id }));
+    setIsTrustedSender(isSenderTrusted(senderAddress, { userId: user?.id }));
     setLegitimacySnapshot(getLegitimacySnapshot({
-      sender: formData.from,
+      sender: senderAddress,
       analysis: result,
       userId: user?.id
     }));
-  }, [result, formData.from, user?.id]);
+  }, [result, senderAddress, user?.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsAnalyzing(true);
+    setErrorMessage(null);
+
+    let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
 
     try {
-      const analysis = await analyzeEmailV2(formData, {
+      const analysisPromise = analyzeEmailV2({ ...formData, userId: user?.id || null }, {
         enableML: useML,
         mlConfig: {
           enabled: useML,
@@ -80,43 +241,84 @@ export default function AnalyzerForm() {
         },
         sensitivity: 'medium'
       });
-      setResult(analysis);
+
+      const timeoutPromise = new Promise<AnalysisResult>((_, reject) => {
+        timeoutHandle = setTimeout(() => {
+          reject(new Error('Analysis timed out. Please try again.'));
+        }, ANALYSIS_TIMEOUT_MS);
+      });
+
+      const analysis = await Promise.race([analysisPromise, timeoutPromise]);
+
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+        timeoutHandle = null;
+      }
+
+      const rawScore = analysis.score;
+      const roundedScore = Math.round(rawScore * 10) / 10;
+      const normalizedAnalysis: AnalysisResult = { ...analysis, score: roundedScore };
+
+      setResult(normalizedAnalysis);
       setLegitimateSaved(false);
 
       try {
-        const verdict = analysis.score >= 70 ? 'phishing' : analysis.score >= 30 ? 'suspicious' : 'safe';
-        recordBehaviorInteraction({ sender: formData.from, verdict });
+        const verdict = rawScore >= 60 ? 'phishing' : rawScore >= 35 ? 'suspicious' : 'safe';
+        recordBehaviorInteraction({ sender: formData.from, verdict, userId: user?.id || null });
       } catch (error) {
         console.error('Failed to record behavior signals:', error);
       }
 
-      // Save to cloud if user is authenticated
       if (user) {
         try {
           await ScanService.createScan(user.id, {
             subject: formData.subject,
             body: formData.body,
             fromEmail: formData.from,
-            riskScore: analysis.score,
-            verdict: analysis.score >= 70 ? 'phishing' : analysis.score >= 30 ? 'suspicious' : 'safe',
-            keywords: analysis.findings.map((f: any) => f.text),
-            links: [], // Could extract URLs from content
+            riskScore: rawScore,
+            verdict: rawScore >= 60 ? 'phishing' : rawScore >= 35 ? 'suspicious' : 'safe',
+            keywords: analysis.findings.map(finding => finding.text),
+            links: [],
             mlConfidence: analysis.breakdown?.ml?.confidence ?? 0,
           });
         } catch (error) {
           console.error('Error saving to cloud:', error);
-          // Don't fail the analysis if cloud save fails
         }
       }
     } catch (error) {
       console.error('Analysis failed:', error);
+      setErrorMessage(error instanceof Error ? error.message : 'Analysis failed. Please try again.');
+      setResult(null);
     } finally {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
       setIsAnalyzing(false);
     }
   };
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: keyof typeof formData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    if (errorMessage) {
+      setErrorMessage(null);
+    }
+  };
+
+  const handleLoadSample = (sampleId: string) => {
+    const sample = SAMPLE_EMAILS.find(item => item.id === sampleId);
+    if (!sample) return;
+    setFormData({
+      from: sample.from,
+      subject: sample.subject,
+      body: sample.body,
+      headers: ''
+    });
+    setResult(null);
+    setLegitimacySnapshot(null);
+    setLegitimateSaved(false);
+    setIsTrustedSender(isSenderTrusted(sample.from, { userId: user?.id }));
+    setErrorMessage(null);
+    setIsAnalyzing(false);
   };
 
   const resetForm = () => {
@@ -124,16 +326,24 @@ export default function AnalyzerForm() {
     setResult(null);
     setLegitimacySnapshot(null);
     setLegitimateSaved(false);
+    setErrorMessage(null);
+    setIsAnalyzing(false);
   };
 
-  const handleLoadAnalysis = (item: any) => {
+  const handleLoadAnalysis = (item: AnalysisHistoryItem) => {
     setFormData({
       from: item.email.from,
       subject: item.email.subject,
       body: item.email.body,
       headers: '',
     });
-    setResult(item.analysis);
+    const mappedResult = mapHistoryItemToAnalysisResult(item);
+    setResult(mappedResult);
+    setLegitimacySnapshot(getLegitimacySnapshot({
+      sender: item.email.from,
+      analysis: mappedResult,
+      userId: user?.id
+    }));
     setShowHistory(false);
   };
 
@@ -162,7 +372,7 @@ export default function AnalyzerForm() {
 
       setLegitimateSaved(true);
       setIsTrustedSender(true);
-      recordBehaviorInteraction({ sender: formData.from, verdict: 'safe' });
+      recordBehaviorInteraction({ sender: formData.from, verdict: 'safe', userId: user?.id || null });
       setLegitimacySnapshot(getLegitimacySnapshot({
         sender: formData.from,
         analysis: result,
@@ -202,25 +412,6 @@ export default function AnalyzerForm() {
     }
   };
 
-  const getScoreColor = (score: number) => {
-    if (score < 30) return 'text-green-600';
-    if (score < 70) return 'text-yellow-600';
-    return 'text-red-600';
-  };
-
-  const getRiskIcon = (riskLevel: string) => {
-    switch (riskLevel) {
-      case 'Low':
-        return <CheckCircle className="h-5 w-5 text-green-600" />;
-      case 'Medium':
-        return <AlertCircle className="h-5 w-5 text-yellow-600" />;
-      case 'High':
-        return <AlertTriangle className="h-5 w-5 text-red-600" />;
-      default:
-        return <AlertCircle className="h-5 w-5" />;
-    }
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -250,6 +441,23 @@ export default function AnalyzerForm() {
                   <History className="h-4 w-4" />
                   History
                 </Button>
+              </div>
+              <div className="mt-4">
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Need inspiration? Load a sample email:</p>
+                <div className="flex flex-wrap gap-2">
+                  {SAMPLE_EMAILS.map(sample => (
+                    <Button
+                      key={sample.id}
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleLoadSample(sample.id)}
+                      className="text-xs dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                    >
+                      {sample.label}
+                    </Button>
+                  ))}
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -344,6 +552,11 @@ export default function AnalyzerForm() {
                   </Button>
                 </div>
               </form>
+              {errorMessage ? (
+                <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-200">
+                  {errorMessage}
+                </div>
+              ) : null}
             </CardContent>
           </Card>
 
@@ -418,7 +631,7 @@ export default function AnalyzerForm() {
               )}
 
               {/* Risk Radar Chart */}
-              {result.breakdown && showVisualization && (
+              {result.breakdown && (
                 <RiskRadarChart
                   breakdown={result.breakdown}
                   overallScore={result.score}
@@ -430,7 +643,7 @@ export default function AnalyzerForm() {
                 <LabelingInterface
                   emailContent={formData}
                   currentPrediction={{
-                    isPhishing: result.score >= 70,
+                    isPhishing: result.score >= 60,
                     confidence: result.score / 100
                   }}
                 />
@@ -481,7 +694,7 @@ export default function AnalyzerForm() {
                 <CardContent>
                   {result.findings.length > 0 ? (
                     <div className="space-y-2">
-                      {result.findings.map((finding: any) => (
+                      {result.findings.map((finding: Finding) => (
                         <div
                           key={finding.id}
                           className={`p-3 rounded-lg border dark:border-gray-700 dark:bg-gray-800/50 ${
@@ -529,7 +742,7 @@ export default function AnalyzerForm() {
               <CardContent className="text-center py-12">
                 <AlertCircle className="h-16 w-16 mx-auto mb-4 text-gray-400" />
                 <p className="text-lg mb-2">Ready to Analyze</p>
-                <p className="text-sm text-gray-600">Enter email content and click "Analyze Email" to get started</p>
+                <p className="text-sm text-gray-600">Enter email content and click &ldquo;Analyze Email&rdquo; to get started</p>
               </CardContent>
             </Card>
           )}

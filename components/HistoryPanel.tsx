@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -29,19 +29,12 @@ interface HistoryPanelProps {
 }
 
 export default function HistoryPanel({ onLoadAnalysis, className = '' }: HistoryPanelProps) {
-  const [history, setHistory] = useState<AnalysisHistoryItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [history, setHistory] = useState<AnalysisHistoryItem[]>(() => getAnalysisHistory());
 
-  useEffect(() => {
-    loadHistory();
-  }, []);
-
-  const loadHistory = () => {
-    setIsLoading(true);
+  const loadHistory = useCallback(() => {
     const historyData = getAnalysisHistory();
     setHistory(historyData);
-    setIsLoading(false);
-  };
+  }, []);
 
   const handleDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -81,21 +74,6 @@ export default function HistoryPanel({ onLoadAnalysis, className = '' }: History
       minute: '2-digit',
     }).format(date);
   };
-
-  if (isLoading) {
-    return (
-      <Card className={className}>
-        <CardHeader>
-          <CardTitle>Analysis History</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8 text-gray-500">
-            Loading history...
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <Card className={className}>

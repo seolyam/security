@@ -1,11 +1,13 @@
 import { ScoreCombiner, AnalysisResult, AnalysisConfig } from './engines/scoreCombiner';
 import { MLConfig } from './engines/mlEngine';
 
+export type FindingMeta = Record<string, unknown>;
+
 export type Finding = {
   id: string;
   severity: 'low' | 'medium' | 'high';
   text: string;
-  meta?: any;
+  meta?: FindingMeta;
   startIndex?: number;
   endIndex?: number;
   category?: string;
@@ -70,7 +72,7 @@ export function analyzeEmail(content: {
   return {
     findings,
     score,
-    riskLevel: score < 30 ? 'Low' : score < 70 ? 'Medium' : 'High'
+    riskLevel: score < 35 ? 'Low' : score < 60 ? 'Medium' : 'High'
   };
 }
 
@@ -81,6 +83,7 @@ export async function analyzeEmailV2(content: {
   from?: string;
   to?: string;
   headers?: string;
+  userId?: string | null;
 }, config?: Partial<AnalysisConfig>): Promise<AnalysisResult> {
 
   const enableML = config?.mlConfig?.enabled ?? config?.enableML ?? false;

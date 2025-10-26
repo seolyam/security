@@ -5,18 +5,13 @@ import { Badge } from './ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Progress } from './ui/progress';
 import { AlertTriangle, CheckCircle, AlertCircle, TrendingUp } from 'lucide-react';
+import type { AnalysisResult } from '../lib/engines/scoreCombiner';
 
-interface BreakdownEntry {
-  score: number;
-  percentage: number;
-  confidence?: number;
-  details?: any;
-  bonus?: number;
-}
+type BreakdownEntry = AnalysisResult['breakdown'][keyof AnalysisResult['breakdown']];
 
 interface ConfidenceGaugeProps {
   score: number;
-  breakdown?: Record<string, BreakdownEntry>;
+  breakdown?: AnalysisResult['breakdown'];
   className?: string;
   showBreakdown?: boolean;
 }
@@ -38,14 +33,14 @@ export default function ConfidenceGauge({
 }: ConfidenceGaugeProps) {
 
   const getScoreColor = (score: number) => {
-    if (score < 30) return { bg: 'bg-green-500', text: 'text-green-600' };
-    if (score < 70) return { bg: 'bg-yellow-500', text: 'text-yellow-600' };
+    if (score < 35) return { bg: 'bg-green-500', text: 'text-green-600' };
+    if (score < 60) return { bg: 'bg-yellow-500', text: 'text-yellow-600' };
     return { bg: 'bg-red-500', text: 'text-red-600' };
   };
 
   const getRiskIcon = (score: number) => {
-    if (score < 30) return <CheckCircle className="h-6 w-6 text-green-600" />;
-    if (score < 70) return <AlertCircle className="h-6 w-6 text-yellow-600" />;
+    if (score < 35) return <CheckCircle className="h-6 w-6 text-green-600" />;
+    if (score < 60) return <AlertCircle className="h-6 w-6 text-yellow-600" />;
     return <AlertTriangle className="h-6 w-6 text-red-600" />;
   };
 
@@ -112,12 +107,12 @@ export default function ConfidenceGauge({
           {/* Risk Level Badge */}
           <Badge
             variant={
-              score < 30 ? 'default' :
-              score < 70 ? 'secondary' : 'destructive'
+              score < 35 ? 'default' :
+              score < 60 ? 'secondary' : 'destructive'
             }
             className="text-sm px-3 py-1"
           >
-            {score < 30 ? 'Low Risk' : score < 70 ? 'Medium Risk' : 'High Risk'}
+            {score < 35 ? 'Low Risk' : score < 60 ? 'Medium Risk' : 'High Risk'}
           </Badge>
           {/* Score Breakdown */}
           {showBreakdown && breakdown && (
@@ -126,23 +121,27 @@ export default function ConfidenceGauge({
 
               <div className="space-y-2">
                 {Object.entries(breakdown)
-                  .filter(([key]) => LABELS[key] && breakdown[key])
-                  .map(([key, value]) => (
-                    <div key={key} className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">{LABELS[key]}</span>
-                      <div className="flex items-center gap-2">
-                        <div className="w-16">
-                          <Progress
-                            value={Math.min(100, Math.max(0, value.score))}
-                            className="h-1"
-                          />
+                  .filter(([key]) => LABELS[key as keyof typeof LABELS])
+                  .map(([key, value]) => {
+                    const typedKey = key as keyof AnalysisResult['breakdown'];
+                    const entry = value as BreakdownEntry;
+                    return (
+                      <div key={typedKey} className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">{LABELS[typedKey] ?? typedKey}</span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-16">
+                            <Progress
+                              value={Math.min(100, Math.max(0, entry.score))}
+                              className="h-1"
+                            />
+                          </div>
+                          <span className="text-xs text-gray-500 w-10 text-right">
+                            {Math.round(entry.score)}%
+                          </span>
                         </div>
-                        <span className="text-xs text-gray-500 w-10 text-right">
-                          {Math.round(value.score)}%
-                        </span>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
               </div>
 
               {/* ML Confidence Indicator */}

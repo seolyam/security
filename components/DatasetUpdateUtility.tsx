@@ -1,10 +1,23 @@
-"use client"
+"use client";
 
-import React, { useState } from 'react';
-import { Button } from './ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Badge } from './ui/badge';
-import { RefreshCw, Download, CheckCircle, AlertTriangle, Wifi, WifiOff } from 'lucide-react';
+import React, { useState } from "react";
+import { Button } from "./ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "./ui/card";
+import { Badge } from "./ui/badge";
+import {
+  RefreshCw,
+  Download,
+  CheckCircle,
+  AlertTriangle,
+  Wifi,
+  WifiOff,
+} from "lucide-react";
 
 interface UpdateInfo {
   version: string;
@@ -24,13 +37,15 @@ export default function DatasetUpdateUtility() {
 
   // GitHub raw URLs for updated datasets
   const UPDATE_SOURCES = {
-    patterns: 'https://raw.githubusercontent.com/yourusername/phishingsense/main/lib/data/patterns.json',
-    model: 'https://raw.githubusercontent.com/yourusername/phishingsense/main/public/model.json'
+    patterns:
+      "https://raw.githubusercontent.com/yourusername/phishingsense/main/lib/data/patterns.json",
+    model:
+      "https://raw.githubusercontent.com/yourusername/phishingsense/main/public/model.json",
   };
 
   React.useEffect(() => {
     // Load last update timestamp
-    const stored = localStorage.getItem('phishingsense_last_update');
+    const stored = localStorage.getItem("phishingsense_last_update");
     if (stored) {
       setLastUpdate(stored);
     }
@@ -39,18 +54,18 @@ export default function DatasetUpdateUtility() {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
 
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
   }, []);
 
   const checkForUpdates = async () => {
     if (!isOnline) {
-      setError('No internet connection available');
+      setError("No internet connection available");
       return;
     }
 
@@ -59,41 +74,53 @@ export default function DatasetUpdateUtility() {
 
     try {
       // Check current patterns
-      const currentPatterns = localStorage.getItem('phishingsense_patterns_backup');
-      const currentTimestamp = currentPatterns ? JSON.parse(currentPatterns).timestamp : null;
+      const currentPatterns = localStorage.getItem(
+        "phishingsense_patterns_backup"
+      );
+      const currentTimestamp = currentPatterns
+        ? JSON.parse(currentPatterns).timestamp
+        : null;
 
       // Fetch remote patterns (using a placeholder URL for now)
-      const response = await fetch('https://api.github.com/repos/yourusername/phishingsense/releases/latest');
+      const response = await fetch(
+        "https://api.github.com/repos/yourusername/phishingsense/releases/latest"
+      );
 
       if (response.ok) {
         const releaseData = await response.json();
 
         // Compare versions
         const remoteVersion = releaseData.tag_name;
-        const currentVersion = '2.0.0'; // Would get from package.json
+        const currentVersion = "2.0.0"; // Would get from package.json
 
         if (remoteVersion !== currentVersion) {
           setUpdateInfo({
             version: remoteVersion,
             lastUpdated: releaseData.published_at,
             patternsCount: 150, // Would get from actual data
-            newKeywords: ['crypto wallet', 'investment opportunity', 'account verification'],
+            newKeywords: [
+              "crypto wallet",
+              "investment opportunity",
+              "account verification",
+            ],
             changelog: [
-              'Added new cryptocurrency scam detection patterns',
-              'Enhanced localization support',
-              'Improved ML model accuracy',
-              'Added educational content and explanations'
-            ]
+              "Added new cryptocurrency scam detection patterns",
+              "Enhanced localization support",
+              "Improved ML model accuracy",
+              "Added educational content and explanations",
+            ],
           });
         } else {
-          setError('You are already using the latest version');
+          setError("You are already using the latest version");
         }
       } else {
-        setError('Unable to check for updates. Please try again later.');
+        setError("Unable to check for updates. Please try again later.");
       }
     } catch (error) {
-      console.error('Update check failed:', error);
-      setError('Failed to check for updates. Please check your internet connection.');
+      console.error("Update check failed:", error);
+      setError(
+        "Failed to check for updates. Please check your internet connection."
+      );
     } finally {
       setIsChecking(false);
     }
@@ -110,38 +137,45 @@ export default function DatasetUpdateUtility() {
       // For now, we'll simulate the update process
 
       // Simulate fetching updated patterns
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
 
       // Update localStorage with new data
       const updatedPatterns = {
-        ...JSON.parse(localStorage.getItem('phishingsense_patterns_backup') || '{}'),
+        ...JSON.parse(
+          localStorage.getItem("phishingsense_patterns_backup") || "{}"
+        ),
         timestamp: new Date().toISOString(),
-        version: updateInfo.version
+        version: updateInfo.version,
       };
 
-      localStorage.setItem('phishingsense_patterns_backup', JSON.stringify(updatedPatterns));
-      localStorage.setItem('phishingsense_last_update', new Date().toISOString());
+      localStorage.setItem(
+        "phishingsense_patterns_backup",
+        JSON.stringify(updatedPatterns)
+      );
+      localStorage.setItem(
+        "phishingsense_last_update",
+        new Date().toISOString()
+      );
 
       setLastUpdate(new Date().toISOString());
 
       // Clear update info
       setUpdateInfo(null);
-
     } catch (error) {
-      console.error('Update failed:', error);
-      setError('Failed to apply updates. Please try again.');
+      console.error("Update failed:", error);
+      setError("Failed to apply updates. Please try again.");
     } finally {
       setIsUpdating(false);
     }
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -151,14 +185,18 @@ export default function DatasetUpdateUtility() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            {isOnline ? <Wifi className="h-5 w-5 text-green-500" /> : <WifiOff className="h-5 w-5 text-red-500" />}
+            {isOnline ? (
+              <Wifi className="h-5 w-5 text-green-500" />
+            ) : (
+              <WifiOff className="h-5 w-5 text-red-500" />
+            )}
             Connection Status
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-2">
-            <Badge variant={isOnline ? 'default' : 'destructive'}>
-              {isOnline ? 'Online' : 'Offline'}
+            <Badge variant={isOnline ? "default" : "destructive"}>
+              {isOnline ? "Online" : "Offline"}
             </Badge>
             {!isOnline && (
               <span className="text-sm text-gray-600">
@@ -180,13 +218,9 @@ export default function DatasetUpdateUtility() {
         <CardContent>
           <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">Current Version</span>
-              <Badge>v2.0.0</Badge>
-            </div>
-            <div className="flex justify-between items-center">
               <span className="text-sm font-medium">Last Update</span>
               <span className="text-sm text-gray-600">
-                {lastUpdate ? formatDate(lastUpdate) : 'Never'}
+                {lastUpdate ? formatDate(lastUpdate) : "Never"}
               </span>
             </div>
             <div className="flex justify-between items-center">
@@ -209,13 +243,16 @@ export default function DatasetUpdateUtility() {
             Check for Updates
           </CardTitle>
           <CardDescription>
-            Fetch the latest phishing patterns and detection improvements from the repository
+            Fetch the latest phishing patterns and detection improvements from
+            the repository
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="text-sm font-medium text-blue-900 mb-2">What gets updated:</div>
+              <div className="text-sm font-medium text-blue-900 mb-2">
+                What gets updated:
+              </div>
               <div className="text-sm text-blue-800 space-y-1">
                 <div>• Latest phishing keywords and patterns</div>
                 <div>• Enhanced detection rules</div>
@@ -269,10 +306,15 @@ export default function DatasetUpdateUtility() {
           <CardContent>
             <div className="space-y-4">
               <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                <div className="text-sm font-medium text-green-900 mb-2">What's new in v{updateInfo.version}:</div>
+                <div className="text-sm font-medium text-green-900 mb-2">
+                  What&apos;s new in v{updateInfo.version}:
+                </div>
                 <div className="space-y-1">
                   {updateInfo.changelog.map((change, index) => (
-                    <div key={index} className="text-sm text-green-800 flex items-start gap-2">
+                    <div
+                      key={index}
+                      className="text-sm text-green-800 flex items-start gap-2"
+                    >
                       <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
                       {change}
                     </div>
@@ -286,7 +328,9 @@ export default function DatasetUpdateUtility() {
                   <div className="text-gray-600">Detection Patterns</div>
                 </div>
                 <div className="text-center p-3 bg-gray-50 rounded-lg">
-                  <div className="font-medium">{updateInfo.newKeywords.length}</div>
+                  <div className="font-medium">
+                    {updateInfo.newKeywords.length}
+                  </div>
                   <div className="text-gray-600">New Keywords</div>
                 </div>
                 <div className="text-center p-3 bg-gray-50 rounded-lg">
@@ -323,7 +367,8 @@ export default function DatasetUpdateUtility() {
           <div className="text-center text-sm text-gray-600">
             <div className="font-medium mb-2">Need to update manually?</div>
             <div>
-              If automatic updates fail, you can download the latest version from{' '}
+              If automatic updates fail, you can download the latest version
+              from{" "}
               <a
                 href="https://github.com/yourusername/phishingsense"
                 target="_blank"

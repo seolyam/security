@@ -1,16 +1,15 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Badge } from './ui/badge';
+import { Badge, type BadgeProps } from './ui/badge';
 import { Input } from './ui/input';
 import {
   AlertTriangle,
   CheckCircle,
   AlertCircle,
   Trash2,
-  Download,
   Calendar,
   User,
   FileText,
@@ -20,9 +19,11 @@ import {
 import { useAuth } from '../lib/authProvider';
 import { ScanService } from '../lib/services/scanService';
 import type { ScanLog } from '../lib/supabase';
+import type { AnalysisHistoryItem, StoredAnalysisResult } from '../lib/historyUtils';
+import type { Finding } from '../lib/ruleEngine';
 
 interface CloudHistoryPanelProps {
-  onLoadAnalysis?: (item: any) => void;
+  onLoadAnalysis?: (item: AnalysisHistoryItem) => void;
   className?: string;
 }
 
@@ -33,11 +34,25 @@ export default function CloudHistoryPanel({ onLoadAnalysis, className = '' }: Cl
   const [filteredScans, setFilteredScans] = useState<ScanLog[]>([]);
   const { user } = useAuth();
 
-  useEffect(() => {
-    if (user) {
-      loadHistory();
+  const loadHistory = useCallback(async () => {
+    if (!user) return;
+
+    setIsLoading(true);
+    try {
+      const scansData = await ScanService.getUserScans(user.id);
+      setScans(scansData);
+    } catch (error) {
+      console.error('Error loading scan history:', error);
+    } finally {
+      setIsLoading(false);
     }
   }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      void loadHistory();
+    }
+  }, [user, loadHistory]);
 
   useEffect(() => {
     if (searchQuery.trim() === '') {
@@ -51,20 +66,6 @@ export default function CloudHistoryPanel({ onLoadAnalysis, className = '' }: Cl
       setFilteredScans(filtered);
     }
   }, [scans, searchQuery]);
-
-  const loadHistory = async () => {
-    if (!user) return;
-
-    setIsLoading(true);
-    try {
-      const scansData = await ScanService.getUserScans(user.id);
-      setScans(scansData);
-    } catch (error) {
-      console.error('Error loading scan history:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleDelete = async (scanId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -80,40 +81,42 @@ export default function CloudHistoryPanel({ onLoadAnalysis, className = '' }: Cl
   };
 
   const handleLoad = (scan: ScanLog) => {
-    if (onLoadAnalysis) {
-      onLoadAnalysis({
-        id: scan.id,
-        email: {
-          from: scan.from_email || '',
-          subject: scan.subject,
-          body: scan.body || '',
-        },
-        analysis: {
-          score: scan.risk_score,
-          riskLevel: getRiskLevel(scan.risk_score),
-          findings: scan.keywords?.map(keyword => ({
-            id: `keyword-${keyword}`,
-            text: `Keyword detected: ${keyword}`,
-            severity: scan.risk_score > 70 ? 'high' : scan.risk_score > 30 ? 'medium' : 'low',
-            category: 'keyword',
-          })) || [],
-          summary: getVerdictText(scan.verdict),
-          breakdown: {
-            keywords: { score: scan.risk_score, matches: scan.keywords || [] },
-            urls: { score: 0, suspiciousUrls: scan.links || [] },
-            domains: { score: 0, suspiciousDomains: [] },
-            attachments: { score: 0, suspiciousFiles: [] },
-            html: { score: 0, indicators: [] },
-          },
-        },
-        timestamp: new Date(scan.created_at).getTime(),
-      });
+    if (!onLoadAnalysis) {
+      return;
     }
+
+    const findings: Finding[] = (scan.keywords ?? []).map(keyword => ({
+      id: `keyword-${keyword}`,
+      text: `Keyword detected: ${keyword}`,
+      severity: scan.risk_score >= 60 ? 'high' : scan.risk_score >= 35 ? 'medium' : 'low',
+      category: 'keyword'
+    }));
+
+    const analysis: StoredAnalysisResult = {
+      score: scan.risk_score,
+      riskLevel: getRiskLevel(scan.risk_score),
+      summary: getVerdictText(scan.verdict),
+      findings
+    };
+
+    const historyItem: AnalysisHistoryItem = {
+      id: scan.id,
+      email: {
+        from: scan.from_email || '',
+        subject: scan.subject,
+        body: scan.body || '',
+        analyzedAt: new Date(scan.created_at)
+      },
+      analysis,
+      createdAt: new Date(scan.created_at)
+    };
+
+    onLoadAnalysis(historyItem);
   };
 
   const getRiskLevel = (score: number): 'Low' | 'Medium' | 'High' => {
-    if (score < 30) return 'Low';
-    if (score < 70) return 'Medium';
+    if (score < 35) return 'Low';
+    if (score < 60) return 'Medium';
     return 'High';
   };
 
@@ -126,12 +129,16 @@ export default function CloudHistoryPanel({ onLoadAnalysis, className = '' }: Cl
     }
   };
 
-  const getVerdictColor = (verdict: string) => {
+  const getVerdictColor = (verdict: string): BadgeProps['variant'] => {
     switch (verdict) {
-      case 'phishing': return 'destructive';
-      case 'suspicious': return 'secondary';
-      case 'safe': return 'default';
-      default: return 'outline';
+      case 'phishing':
+        return 'destructive';
+      case 'suspicious':
+        return 'secondary';
+      case 'safe':
+        return 'default';
+      default:
+        return 'outline';
     }
   };
 
@@ -216,7 +223,7 @@ export default function CloudHistoryPanel({ onLoadAnalysis, className = '' }: Cl
                     <div className="flex items-center gap-2 mb-2">
                       {getRiskIcon(scan.verdict)}
                       <h3 className="font-medium text-sm">{scan.subject}</h3>
-                      <Badge variant={getVerdictColor(scan.verdict) as any} className="text-xs">
+                      <Badge variant={getVerdictColor(scan.verdict)} className="text-xs">
                         {scan.verdict}
                       </Badge>
                     </div>

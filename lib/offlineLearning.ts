@@ -24,7 +24,7 @@ export interface TrainingConfig {
 
 export interface MLModelData {
   samples: LabeledSample[];
-  modelConfig?: any;
+  modelConfig?: Record<string, unknown>;
   lastTrained?: number;
   accuracy?: number;
 }
@@ -198,15 +198,15 @@ export class OfflineLearningManager {
   }
 
   // Validate sample format
-  private validateSample(sample: any): sample is LabeledSample {
+  private validateSample(sample: unknown): sample is LabeledSample {
+    if (!sample || typeof sample !== 'object') return false;
+    const candidate = sample as Partial<LabeledSample>;
     return (
-      typeof sample === 'object' &&
-      typeof sample.id === 'string' &&
-      typeof sample.label === 'string' &&
-      ['phishing', 'safe'].includes(sample.label) &&
-      typeof sample.timestamp === 'number' &&
-      typeof sample.userId === 'string' &&
-      typeof sample.content === 'object'
+      typeof candidate.id === 'string' &&
+      (candidate.label === 'phishing' || candidate.label === 'safe') &&
+      typeof candidate.timestamp === 'number' &&
+      typeof candidate.userId === 'string' &&
+      typeof candidate.content === 'object'
     );
   }
 }

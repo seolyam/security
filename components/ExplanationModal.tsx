@@ -1,20 +1,14 @@
 "use client"
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from './ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Badge } from './ui/badge';
-import { HelpCircle, X, Lightbulb, Shield, AlertTriangle, CheckCircle, BookOpen } from 'lucide-react';
+import { HelpCircle, X, Lightbulb, Shield, AlertTriangle, CheckCircle } from 'lucide-react';
+import type { Finding } from '../lib/ruleEngine';
 
 interface ExplanationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  finding: {
-    id: string;
-    category: string;
-    severity: string;
-    text: string;
-  };
+  finding?: Finding;
 }
 
 const explanations = {
@@ -101,9 +95,9 @@ const explanations = {
 };
 
 export default function ExplanationModal({ isOpen, onClose, finding }: ExplanationModalProps) {
-  if (!isOpen) return null;
+  if (!isOpen || !finding) return null;
 
-  const category = finding.category || 'default';
+  const category = finding.category ?? 'default';
   const explanation = explanations[category as keyof typeof explanations] || explanations.default;
 
   return (

@@ -1,11 +1,11 @@
 "use client"
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ShieldCheck, Trash2, RefreshCw, Mail } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { getTrustedRecords, removeTrustedRecord, TrustedRecord } from '../lib/services/trustedService';
+import { getTrustedRecords, removeTrustedRecord, TrustedRecord, syncTrustedRecordsFromRemote } from '../lib/services/trustedService';
 import { useAuth } from '../lib/authProvider';
 
 function formatDate(date: string): string {
@@ -21,18 +21,34 @@ export default function TrustedInsightsTab() {
   const { user } = useAuth();
   const [records, setRecords] = useState<TrustedRecord[]>([]);
 
-  const refreshRecords = () => {
-    const data = getTrustedRecords({ userId: user?.id });
+  const fetchRecords = useCallback(async (): Promise<TrustedRecord[]> => {
+    if (user?.id) {
+      await syncTrustedRecordsFromRemote(user.id);
+    }
+    return getTrustedRecords({ userId: user?.id });
+  }, [user]);
+
+  const refreshRecords = useCallback(async () => {
+    const data = await fetchRecords();
     setRecords(data);
-  };
+  }, [fetchRecords]);
 
   useEffect(() => {
-    refreshRecords();
-  }, [user?.id]);
+    let isActive = true;
+    (async () => {
+      const data = await fetchRecords();
+      if (isActive) {
+        setRecords(data);
+      }
+    })();
+    return () => {
+      isActive = false;
+    };
+  }, [fetchRecords]);
 
-  const handleRemove = (id: string) => {
-    removeTrustedRecord(id);
-    refreshRecords();
+  const handleRemove = async (id: string) => {
+    await removeTrustedRecord(id, user?.id);
+    await refreshRecords();
   };
 
   const total = records.length;
@@ -54,7 +70,7 @@ export default function TrustedInsightsTab() {
             Review and manage emails you have confirmed as legitimate. These confirmations help reduce false positives.
           </p>
         </div>
-        <Button variant="outline" onClick={refreshRecords} className="flex items-center gap-2">
+        <Button variant="outline" onClick={() => void refreshRecords()} className="flex items-center gap-2">
           <RefreshCw className="h-4 w-4" />
           Refresh
         </Button>

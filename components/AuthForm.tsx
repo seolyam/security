@@ -105,7 +105,7 @@ export default function AuthForm({ mode, onToggleMode, onSuccess }: AuthFormProp
       if (onSuccess) {
         setTimeout(onSuccess, 1500);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Auth error:', error);
       setError(AuthService.getAuthErrorMessage(error));
     } finally {
@@ -133,7 +133,7 @@ export default function AuthForm({ mode, onToggleMode, onSuccess }: AuthFormProp
     try {
       await signInWithMagicLink(formData.email);
       setMessage('Magic link sent! Check your email and click the link to sign in.');
-    } catch (error: any) {
+    } catch (error) {
       console.error('Magic link error:', error);
       setError(AuthService.getAuthErrorMessage(error));
     } finally {
@@ -149,7 +149,7 @@ export default function AuthForm({ mode, onToggleMode, onSuccess }: AuthFormProp
             <Shield className="h-12 w-12 text-blue-600" />
           </div>
           <h2 className="mt-6 text-3xl font-extrabold text-gray-900 dark:text-white">
-            {mode === 'signin' ? 'Sign in to PhishingSense' : 'Create your account'}
+            {mode === 'signin' ? 'Sign in to Phishsense' : 'Create your account'}
           </h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             {mode === 'signin'
@@ -297,7 +297,7 @@ export default function AuthForm({ mode, onToggleMode, onSuccess }: AuthFormProp
 
               <Button
                 type="submit"
-                className="w-full"
+                className="w-full bg-black text-white hover:bg-gray-900 disabled:opacity-70 disabled:cursor-not-allowed"
                 disabled={loading}
               >
                 {loading ? (
@@ -328,14 +328,14 @@ export default function AuthForm({ mode, onToggleMode, onSuccess }: AuthFormProp
               <div className="text-center">
                 <Button
                   type="button"
-                  variant="link"
+                  variant="default"
                   onClick={onToggleMode}
-                  className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400"
+                  className="w-full bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400"
+                  disabled={loading}
                 >
                   {mode === 'signin'
-                    ? "Don't have an account? Sign up"
-                    : 'Already have an account? Sign in'
-                  }
+                    ? "Need an account? Create one"
+                    : 'Already registered? Sign in'}
                 </Button>
               </div>
             </form>

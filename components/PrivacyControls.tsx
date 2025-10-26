@@ -50,7 +50,7 @@ export default function PrivacyControls({ onDataCleared, className = '' }: Priva
       if ('indexedDB' in window) {
         indexedDB.databases().then(databases => {
           databases.forEach(db => {
-            if (db.name && db.name.includes('PhishingSense')) {
+            if (db.name && db.name.includes('Phishsense')) {
               indexedDB.deleteDatabase(db.name);
             }
           });
@@ -126,7 +126,7 @@ export default function PrivacyControls({ onDataCleared, className = '' }: Priva
             </div>
             <div className="text-sm text-green-700">
               All email analysis, training data, and history are stored locally in your browser.
-              PhishingSense never transmits your data to external servers or third parties.
+              Phishsense never transmits your data to external servers or third parties.
             </div>
           </div>
         </CardContent>

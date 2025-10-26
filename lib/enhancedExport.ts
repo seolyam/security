@@ -1,5 +1,4 @@
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 import { AnalysisResult } from './engines/scoreCombiner';
 
 export interface EmailData {
@@ -37,6 +36,8 @@ export const generateEnhancedPDF = async (
 ): Promise<void> => {
   try {
     const pdf = new jsPDF();
+    const formatPercent = (value: number) => `${(Math.round(value * 10) / 10).toFixed(1)}%`;
+    const formatConfidence = (value: number) => `${(Math.round(value * 1000) / 10).toFixed(1)}%`;
 
     // Generate signature for the report
     const signatureData = JSON.stringify({
@@ -57,10 +58,11 @@ export const generateEnhancedPDF = async (
       }
     };
 
-    // Add header with signature
+    pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(20);
-    pdf.text('🔍 PhishingSense v2.0 Analysis Report', 20, 30);
+    pdf.text('Phishsense Analysis Report', 20, 30);
 
+    pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(10);
     pdf.text(`Report ID: ${signature}`, 20, 40);
     pdf.text(`Generated: ${reportData.metadata.generatedAt.toLocaleString()}`, 20, 45);
@@ -69,15 +71,17 @@ export const generateEnhancedPDF = async (
     let yPosition = 65;
 
     // Email Information Section
+    pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(14);
-    pdf.text('📧 Email Information', 20, yPosition);
+    pdf.text('Email Information', 20, yPosition);
     yPosition += 15;
 
+    pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(10);
     const emailInfo = [
       `From: ${email.from}`,
       `Subject: ${email.subject}`,
-      `Analysis Time: ${analysis.processingTime}ms`
+      `Analysis Time: ${(analysis.processingTime ?? 0)}ms`
     ];
 
     emailInfo.forEach(info => {
@@ -88,40 +92,44 @@ export const generateEnhancedPDF = async (
     yPosition += 10;
 
     // Risk Assessment Section
+    pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(14);
-    pdf.text('⚠️ Risk Assessment', 20, yPosition);
+    pdf.text('Risk Assessment', 20, yPosition);
     yPosition += 15;
 
+    pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(12);
-    pdf.text(`Overall Risk Score: ${analysis.score}%`, 20, yPosition);
+    pdf.text(`Overall Risk Score: ${analysis.score.toFixed(1)}%`, 20, yPosition);
     yPosition += 10;
 
-    // Risk level with color indicator
     const riskColor = analysis.riskLevel === 'Low' ? [0, 128, 0] :
                      analysis.riskLevel === 'Medium' ? [255, 165, 0] : [255, 0, 0];
 
     pdf.setTextColor(riskColor[0], riskColor[1], riskColor[2]);
+    pdf.setFont('helvetica', 'bold');
     pdf.text(`Risk Level: ${analysis.riskLevel} - ${analysis.summary}`, 20, yPosition);
-    pdf.setTextColor(0, 0, 0); // Reset to black
+    pdf.setTextColor(0, 0, 0);
     yPosition += 10;
 
-    // Score breakdown
+    pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(10);
-    pdf.text(`Rule-based Analysis: ${Math.round(analysis.breakdown.rules.score)}% (${analysis.breakdown.rules.percentage}%)`, 25, yPosition);
+    pdf.text(`Rule-based Analysis: ${formatPercent(analysis.breakdown.rules.score)} (weight ${formatPercent(analysis.breakdown.rules.percentage)})`, 25, yPosition);
     yPosition += 8;
-    pdf.text(`Header Validation: ${Math.round(analysis.breakdown.headers.score)}% (${analysis.breakdown.headers.percentage}%)`, 25, yPosition);
+    pdf.text(`Header Validation: ${formatPercent(analysis.breakdown.headers.score)} (weight ${formatPercent(analysis.breakdown.headers.percentage)})`, 25, yPosition);
     yPosition += 8;
-    pdf.text(`ML Analysis: ${Math.round(analysis.breakdown.ml.score)}% (${analysis.breakdown.ml.percentage}%)`, 25, yPosition);
+    pdf.text(`ML Analysis: ${formatPercent(analysis.breakdown.ml.score)} (weight ${formatPercent(analysis.breakdown.ml.percentage)})`, 25, yPosition);
     yPosition += 8;
-    pdf.text(`Additional Factors: ${Math.round(analysis.breakdown.misc.score)}% (${analysis.breakdown.misc.percentage}%)`, 25, yPosition);
+    pdf.text(`Additional Factors: ${formatPercent(analysis.breakdown.misc.score)} (weight ${formatPercent(analysis.breakdown.misc.percentage)})`, 25, yPosition);
     yPosition += 15;
 
     // Findings Section
     if (analysis.findings.length > 0) {
+      pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(14);
-      pdf.text('🔍 Detailed Findings', 20, yPosition);
+      pdf.text('Detailed Findings', 20, yPosition);
       yPosition += 15;
 
+      pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(10);
       analysis.findings.forEach((finding, index) => {
         if (yPosition > 250) {
@@ -129,14 +137,12 @@ export const generateEnhancedPDF = async (
           yPosition = 30;
         }
 
-        // Finding severity indicator
-        const severitySymbol = finding.severity === 'high' ? '🔴' :
-                              finding.severity === 'medium' ? '🟡' : '🔵';
+        const severityLabel = finding.severity === 'high' ? '[HIGH]' :
+                              finding.severity === 'medium' ? '[MEDIUM]' : '[LOW]';
 
-        pdf.text(`${index + 1}. ${severitySymbol} ${finding.text}`, 20, yPosition);
+        pdf.text(`${index + 1}. ${severityLabel} ${finding.text}`, 20, yPosition);
         yPosition += 8;
 
-        // Add category and metadata if available
         if (finding.category) {
           pdf.setFontSize(8);
           pdf.text(`   Category: ${finding.category}`, 25, yPosition);
@@ -148,12 +154,14 @@ export const generateEnhancedPDF = async (
       });
     }
 
-    // Email Content Preview (first 500 characters)
+    // Email Content Preview
     pdf.addPage();
+    pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(14);
-    pdf.text('📄 Email Content Preview', 20, 30);
+    pdf.text('Email Content Preview', 20, 30);
     yPosition = 45;
 
+    pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(9);
     const previewText = email.body.substring(0, 800);
     const lines = pdf.splitTextToSize(previewText, 170);
@@ -170,20 +178,24 @@ export const generateEnhancedPDF = async (
     // Header Analysis (if available)
     if (email.headers && analysis.breakdown.headers.score > 0) {
       pdf.addPage();
+      pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(14);
-      pdf.text('🔐 Header Authentication Analysis', 20, 30);
+      pdf.text('Header Authentication Analysis', 20, 30);
       yPosition = 45;
 
+      const headerDetails = analysis.breakdown.headers.details ?? {};
+
+      pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(10);
-      const headerDetails = [
-        `SPF Status: ${analysis.breakdown.headers.details.spfStatus || 'Not Available'}`,
-        `DKIM Status: ${analysis.breakdown.headers.details.dkimStatus || 'Not Available'}`,
-        `DMARC Status: ${analysis.breakdown.headers.details.dmarcStatus || 'Not Available'}`,
-        `Email Hops: ${analysis.breakdown.headers.details.receivedCount}`,
-        `Suspicious Headers: ${analysis.breakdown.headers.details.suspiciousHeaders}`
+      const headerInfo = [
+        `SPF Status: ${headerDetails.spfStatus ?? 'Not Available'}`,
+        `DKIM Status: ${headerDetails.dkimStatus ?? 'Not Available'}`,
+        `DMARC Status: ${headerDetails.dmarcStatus ?? 'Not Available'}`,
+        `Email Hops: ${headerDetails.receivedCount ?? 0}`,
+        `Suspicious Headers: ${headerDetails.suspiciousHeaders ?? 0}`
       ];
 
-      headerDetails.forEach(detail => {
+      headerInfo.forEach(detail => {
         if (yPosition > 250) {
           pdf.addPage();
           yPosition = 30;
@@ -196,16 +208,18 @@ export const generateEnhancedPDF = async (
     // ML Analysis Details (if used)
     if (analysis.breakdown.ml.confidence > 0) {
       pdf.addPage();
+      pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(14);
-      pdf.text('🧠 Machine Learning Analysis', 20, 30);
+      pdf.text('Machine Learning Analysis', 20, 30);
       yPosition = 45;
 
+      pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(10);
       const mlDetails = [
         `Model Used: ${analysis.breakdown.ml.modelUsed}`,
-        `ML Confidence: ${Math.round(analysis.breakdown.ml.confidence * 100)}%`,
-        `ML Score: ${Math.round(analysis.breakdown.ml.score)}%`,
-        `Processing Time: ${analysis.processingTime}ms`
+        `ML Confidence: ${formatConfidence(analysis.breakdown.ml.confidence)}`,
+        `ML Score: ${formatPercent(analysis.breakdown.ml.score)}`,
+        `Processing Time: ${(analysis.processingTime ?? 0)}ms`
       ];
 
       mlDetails.forEach(detail => {
@@ -220,18 +234,20 @@ export const generateEnhancedPDF = async (
 
     // Recommendations Section
     pdf.addPage();
+    pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(14);
-    pdf.text('💡 Recommendations', 20, 30);
+    pdf.text('Recommendations', 20, 30);
     yPosition = 45;
 
+    pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(10);
     const recommendations = [
-      analysis.riskLevel === 'High' ? '❌ DO NOT click any links or provide credentials' : '✅ Email appears safe to interact with',
-      analysis.riskLevel === 'Medium' ? '⚠️  Verify sender identity through official channels' : '',
-      'Always check URL domains before clicking',
-      'Enable two-factor authentication on important accounts',
-      'Use antivirus software with email scanning',
-      'Report suspicious emails to your IT security team'
+      analysis.riskLevel === 'High' ? 'Do not click any links or provide credentials.' : 'Email appears safe to interact with.',
+      analysis.riskLevel === 'Medium' ? 'Verify sender identity through official channels.' : '',
+      'Always check URL domains before clicking.',
+      'Enable two-factor authentication on important accounts.',
+      'Use antivirus software with email scanning.',
+      'Report suspicious emails to your IT security team.'
     ].filter(Boolean);
 
     recommendations.forEach(rec => {
@@ -239,7 +255,7 @@ export const generateEnhancedPDF = async (
         pdf.addPage();
         yPosition = 30;
       }
-      pdf.text(`• ${rec}`, 20, yPosition);
+      pdf.text(`- ${rec}`, 20, yPosition);
       yPosition += 8;
     });
 
@@ -247,9 +263,10 @@ export const generateEnhancedPDF = async (
     const pageCount = pdf.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       pdf.setPage(i);
+      pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(8);
       pdf.text(
-        `PhishingSense v2.0 Report | Signature: ${signature} | Page ${i} of ${pageCount}`,
+        `Phishsense Report | Signature: ${signature} | Page ${i} of ${pageCount}`,
         20,
         pdf.internal.pageSize.height - 15
       );
@@ -260,7 +277,6 @@ export const generateEnhancedPDF = async (
       );
     }
 
-    // Download the PDF
     const fileName = `phishingsense-report-${signature}-${new Date().toISOString().split('T')[0]}.pdf`;
     pdf.save(fileName);
 

@@ -18,6 +18,15 @@ export interface ModelConfig {
   dropoutRate: number;
 }
 
+interface StoredModelData {
+  config: ModelConfig;
+  timestamp?: number;
+}
+
+export interface TrainingHistoryEntry extends TrainingResult {
+  timestamp: number;
+}
+
 export class MLRetrainer {
   private static instance: MLRetrainer;
   private model: tf.LayersModel | null = null;
@@ -112,7 +121,7 @@ export class MLRetrainer {
     this.tokenizer.set('<PAD>', 0);
     this.tokenizer.set('<UNK>', 1);
 
-    sortedWords.forEach(([word, _], index) => {
+    sortedWords.forEach(([word], index) => {
       this.tokenizer.set(word, index + 2);
     });
   }
@@ -330,12 +339,20 @@ export class MLRetrainer {
     const stored = localStorage.getItem('phishingsense_user_model');
     if (!stored) return null;
 
-    const modelData = JSON.parse(stored);
-    return {
-      samples: 0, // Would need to get from training history
-      config: modelData.config,
-      lastTrained: modelData.timestamp
-    };
+    try {
+      const modelData = JSON.parse(stored) as StoredModelData;
+      if (!modelData || !modelData.config) {
+        return null;
+      }
+      return {
+        samples: 0, // Would need to get from training history
+        config: modelData.config,
+        lastTrained: modelData.timestamp
+      };
+    } catch (error) {
+      console.error('Failed to parse stored model info:', error);
+      return null;
+    }
   }
 
   // Clear model
@@ -346,9 +363,16 @@ export class MLRetrainer {
   }
 
   // Get training history
-  getTrainingHistory(): any[] {
+  getTrainingHistory(): TrainingHistoryEntry[] {
     const stored = localStorage.getItem('phishingsense_training_history');
-    return stored ? JSON.parse(stored) : [];
+    if (!stored) return [];
+    try {
+      const parsed = JSON.parse(stored) as TrainingHistoryEntry[];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      console.error('Failed to parse training history:', error);
+      return [];
+    }
   }
 
   // Save training history

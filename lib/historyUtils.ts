@@ -1,12 +1,8 @@
-export interface AnalysisResult {
-  findings: Array<{
-    id: string;
-    severity: 'low' | 'medium' | 'high';
-    text: string;
-    meta?: any;
-    startIndex?: number;
-    endIndex?: number;
-  }>;
+import type { AnalysisResult as FullAnalysisResult } from './engines/scoreCombiner';
+import type { Finding } from './ruleEngine';
+
+export interface StoredAnalysisResult {
+  findings: Finding[];
   score: number;
   riskLevel: string;
   summary: string;
@@ -22,14 +18,21 @@ export interface EmailData {
 export interface AnalysisHistoryItem {
   id: string;
   email: EmailData;
-  analysis: AnalysisResult;
+  analysis: StoredAnalysisResult;
   createdAt: Date;
 }
 
 const STORAGE_KEY = 'phishsense-history';
 const MAX_HISTORY_ITEMS = 50;
 
-export const saveAnalysisToHistory = (email: EmailData, analysis: AnalysisResult): void => {
+export const toStoredAnalysisResult = (analysis: FullAnalysisResult): StoredAnalysisResult => ({
+  findings: analysis.findings,
+  score: analysis.score,
+  riskLevel: analysis.riskLevel,
+  summary: analysis.summary
+});
+
+export const saveAnalysisToHistory = (email: EmailData, analysis: StoredAnalysisResult): void => {
   try {
     const history = getAnalysisHistory();
 
@@ -37,10 +40,9 @@ export const saveAnalysisToHistory = (email: EmailData, analysis: AnalysisResult
       id: generateId(),
       email,
       analysis,
-      createdAt: new Date(),
+      createdAt: new Date()
     };
 
-    // Add to beginning of array and limit to max items
     const updatedHistory = [newItem, ...history].slice(0, MAX_HISTORY_ITEMS);
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedHistory));
@@ -54,14 +56,21 @@ export const getAnalysisHistory = (): AnalysisHistoryItem[] => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (!stored) return [];
 
-    const history = JSON.parse(stored);
-    return history.map((item: any) => ({
-      ...item,
+    const rawHistory = JSON.parse(stored) as Array<{
+      id: string;
+      email: EmailData & { analyzedAt: string | Date };
+      analysis: StoredAnalysisResult;
+      createdAt: string | Date;
+    }>;
+
+    return rawHistory.map(item => ({
+      id: item.id,
       email: {
         ...item.email,
-        analyzedAt: new Date(item.email.analyzedAt),
+        analyzedAt: new Date(item.email.analyzedAt)
       },
-      createdAt: new Date(item.createdAt),
+      analysis: item.analysis,
+      createdAt: new Date(item.createdAt)
     }));
   } catch (error) {
     console.error('Error loading analysis history:', error);
@@ -95,7 +104,7 @@ export const getAnalysisById = (id: string): AnalysisHistoryItem | null => {
 export const exportHistoryToJSON = (): void => {
   const history = getAnalysisHistory();
   const dataStr = JSON.stringify(history, null, 2);
-  const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+  const dataUri = `data:application/json;charset=utf-8,${encodeURIComponent(dataStr)}`;
 
   const exportFileDefaultName = `phishsense-history-${new Date().toISOString().split('T')[0]}.json`;
 
@@ -106,5 +115,5 @@ export const exportHistoryToJSON = (): void => {
 };
 
 function generateId(): string {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
 }

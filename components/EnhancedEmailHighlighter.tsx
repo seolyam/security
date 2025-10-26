@@ -4,16 +4,8 @@ import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
-import { Eye, MousePointer, AlertTriangle, Info } from 'lucide-react';
-
-interface Finding {
-  id: string;
-  text: string;
-  severity: 'low' | 'medium' | 'high';
-  category: string;
-  startIndex?: number;
-  endIndex?: number;
-}
+import { Eye, MousePointer, Info } from 'lucide-react';
+import type { Finding } from '../lib/ruleEngine';
 
 interface EmailHighlighterProps {
   content: string;
@@ -69,7 +61,7 @@ export default function EmailHighlighter({
           className={`relative cursor-pointer transition-all duration-200 ${severityColor} ${isHovered ? 'ring-2 ring-blue-400' : ''}`}
           onMouseEnter={() => showHoverEffects && setHoveredFinding(finding.id)}
           onMouseLeave={() => showHoverEffects && setHoveredFinding(null)}
-          title={showHoverEffects ? `${finding.category || 'Unknown'} (${finding.severity})` : undefined}
+          title={showHoverEffects ? `${finding.category ?? 'Unknown'} (${finding.severity})` : undefined}
         >
           {content.slice(startIndex, endIndex)}
 

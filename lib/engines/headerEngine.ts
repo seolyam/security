@@ -6,7 +6,7 @@ export interface HeaderResult {
     id: string;
     severity: 'low' | 'medium' | 'high';
     text: string;
-    meta?: any;
+    meta?: Record<string, unknown>;
     category?: string;
   }>;
   details: {
@@ -26,6 +26,13 @@ export interface HeaderResult {
 }
 
 export class HeaderEngine {
+  private mapSuspiciousHeader(header: unknown): Record<string, unknown> {
+    if (header && typeof header === 'object') {
+      return header as Record<string, unknown>;
+    }
+    return { value: header };
+  }
+
   async analyze(headersText: string): Promise<HeaderResult> {
     const findings: HeaderResult['findings'] = [];
     let positiveBonus = 0;
@@ -148,12 +155,15 @@ export class HeaderEngine {
 
       // Suspicious Headers Analysis
       if (headerAnalysis.suspiciousHeaders && headerAnalysis.suspiciousHeaders.length > 0) {
-        headerAnalysis.suspiciousHeaders.forEach((suspicious: any) => {
+        headerAnalysis.suspiciousHeaders.forEach((suspicious: unknown) => {
+          const mappedHeader = this.mapSuspiciousHeader(suspicious);
+          const headerName = typeof mappedHeader.header === 'string' ? mappedHeader.header : 'unknown-header';
+          const reason = typeof mappedHeader.reason === 'string' ? mappedHeader.reason : 'Flagged as suspicious';
           findings.push({
-            id: `suspicious-header-${suspicious.header}`,
+            id: `suspicious-header-${headerName}`,
             severity: 'low',
-            text: `Suspicious header detected: ${suspicious.header} - ${suspicious.reason}`,
-            meta: suspicious,
+            text: `Suspicious header detected: ${headerName} - ${reason}`,
+            meta: mappedHeader,
             category: 'headers'
           });
         });

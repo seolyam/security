@@ -1,8 +1,16 @@
 import * as tf from '@tensorflow/tfjs';
 import patterns from '../data/patterns.json';
 
-const KEYWORD_PATTERN_COUNT = Object.values(patterns.phishingKeywords)
-  .reduce((total, category: any) => total + (category.patterns?.length || 0), 0);
+type PhishingKeywordCategory = {
+  patterns?: string[];
+};
+
+const keywordCategories = Object.values(
+  patterns.phishingKeywords as Record<string, PhishingKeywordCategory>
+);
+
+const KEYWORD_PATTERN_COUNT = keywordCategories
+  .reduce((total, category) => total + (category.patterns?.length ?? 0), 0);
 const ADDITIONAL_FEATURE_COUNT = 10;
 const FEATURE_VECTOR_LENGTH = KEYWORD_PATTERN_COUNT + ADDITIONAL_FEATURE_COUNT;
 
@@ -13,7 +21,7 @@ export interface MLResult {
     id: string;
     severity: 'low' | 'medium' | 'high';
     text: string;
-    meta?: any;
+    meta?: Record<string, unknown>;
     category?: string;
   }>;
   modelUsed: string;

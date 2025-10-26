@@ -145,6 +145,12 @@
     "https://support.apple.com"
   ],
 
+  "threatIntelSources": [
+    "https://raw.githubusercontent.com/MetaMask/eth-phishing-detect/master/src/hosts.txt",
+    "https://phish.sinking.yachts/v2/domains.txt",
+    "https://raw.githubusercontent.com/mitchellkrogza/Phishing.Database/master/ALL-phishing-domains.txt"
+  ],
+
   "urlPatterns": {
     "shorteners": ["bit.ly", "tinyurl", "goo.gl", "t.co", "tiny.cc", "is.gd", "buff.ly", "shorte.st", "adf.ly", "bit.do"],
     "suspicious": ["login", "secure", "verify", "account", "bank", "paypal", "crypto", "wallet", "refund", "claim", "prize"],

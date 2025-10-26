@@ -5,16 +5,13 @@ import { CheckCircle2, ShieldCheck, Sparkles, Info, PlusCircle } from 'lucide-re
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import type { AnalysisResult } from '../lib/engines/scoreCombiner';
+import type { Finding } from '../lib/ruleEngine';
+import type { LegitimacySnapshot } from '../lib/services/trustedService';
 
 interface LegitimacyChecklistProps {
-  analysis: any;
-  snapshot: {
-    trustedByUser?: boolean;
-    authStrong?: boolean;
-    mlSupports?: boolean;
-    score: number;
-    verdict?: string;
-  } | null;
+  analysis: AnalysisResult;
+  snapshot: LegitimacySnapshot | null;
   isTrustedSender: boolean;
   onMarkLegitimate: () => Promise<void> | void;
   markDisabled?: boolean;
@@ -30,8 +27,7 @@ export default function LegitimacyChecklist({
   showSavedState
 }: LegitimacyChecklistProps) {
   const items = useMemo(() => {
-    if (!analysis) return [];
-    const headerDetails = analysis?.breakdown?.headers?.details || {};
+    const headerDetails = analysis.breakdown.headers?.details || {};
     return [
       {
         id: 'auth',
@@ -65,8 +61,8 @@ export default function LegitimacyChecklist({
   }, [analysis, snapshot, isTrustedSender]);
 
   const canMarkLegitimate = !isTrustedSender && !markDisabled;
-  const scoreValue = Math.round(analysis?.score ?? 0);
-  const scoreColor = scoreValue < 30 ? 'text-green-600' : scoreValue < 70 ? 'text-yellow-600' : 'text-red-600';
+  const scoreValue = Math.round(analysis.score ?? 0);
+  const scoreColor = scoreValue < 35 ? 'text-green-600' : scoreValue < 60 ? 'text-yellow-600' : 'text-red-600';
 
   return (
     <Card className="dark:bg-gray-800 dark:border-gray-700">

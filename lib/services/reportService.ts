@@ -1,6 +1,12 @@
 import { supabase } from '../supabase';
 import type { Report } from '../supabase';
 
+export interface UserReportStats {
+  totalReports: number;
+  avgRiskScore: number;
+  phishingPercentage: number;
+}
+
 export interface CreateReportData {
   fileName: string;
   hash: string;
@@ -9,7 +15,7 @@ export interface CreateReportData {
 }
 
 export class ReportService {
-  static async createReport(userId: string, reportData: CreateReportData) {
+  static async createReport(userId: string, reportData: CreateReportData): Promise<Report> {
     const { data, error } = await supabase
       .from('reports')
       .insert({
@@ -23,10 +29,10 @@ export class ReportService {
       .single();
 
     if (error) throw error;
-    return data;
+    return data as Report;
   }
 
-  static async getUserReports(userId: string, limit = 50, offset = 0) {
+  static async getUserReports(userId: string, limit = 50, offset = 0): Promise<Report[]> {
     const { data, error } = await supabase
       .from('reports')
       .select('*')
@@ -35,10 +41,10 @@ export class ReportService {
       .range(offset, offset + limit - 1);
 
     if (error) throw error;
-    return data;
+    return (data ?? []) as Report[];
   }
 
-  static async getReportById(reportId: string, userId: string) {
+  static async getReportById(reportId: string, userId: string): Promise<Report> {
     const { data, error } = await supabase
       .from('reports')
       .select('*')
@@ -47,10 +53,10 @@ export class ReportService {
       .single();
 
     if (error) throw error;
-    return data;
+    return data as Report;
   }
 
-  static async deleteReport(reportId: string, userId: string) {
+  static async deleteReport(reportId: string, userId: string): Promise<void> {
     const { error } = await supabase
       .from('reports')
       .delete()
@@ -60,7 +66,7 @@ export class ReportService {
     if (error) throw error;
   }
 
-  static async getUserReportStats(userId: string) {
+  static async getUserReportStats(userId: string): Promise<UserReportStats> {
     const { data, error } = await supabase
       .from('reports')
       .select('risk_score, verdict, created_at')
@@ -68,7 +74,9 @@ export class ReportService {
 
     if (error) throw error;
 
-    if (!data || data.length === 0) {
+    const reports = (data ?? []) as Array<Pick<Report, 'risk_score' | 'verdict' | 'created_at'>>;
+
+    if (reports.length === 0) {
       return {
         totalReports: 0,
         avgRiskScore: 0,
@@ -76,9 +84,9 @@ export class ReportService {
       };
     }
 
-    const totalReports = data.length;
-    const avgRiskScore = data.reduce((sum, report) => sum + report.risk_score, 0) / totalReports;
-    const phishingCount = data.filter(report => report.verdict === 'phishing').length;
+    const totalReports = reports.length;
+    const avgRiskScore = reports.reduce((sum, report) => sum + report.risk_score, 0) / totalReports;
+    const phishingCount = reports.filter(report => report.verdict === 'phishing').length;
     const phishingPercentage = (phishingCount / totalReports) * 100;
 
     return {
@@ -98,6 +106,6 @@ export class ReportService {
       .limit(limit);
 
     if (error) throw error;
-    return data;
+    return (data ?? []) as Report[];
   }
 }

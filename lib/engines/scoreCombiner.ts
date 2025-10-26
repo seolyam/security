@@ -3,19 +3,31 @@ import { RuleEngine, RuleResult } from './ruleEngine';
 import { HeaderEngine, HeaderResult } from './headerEngine';
 import { ReputationEngine, ReputationResult } from './reputationEngine';
 import { BehaviorEngine, BehaviorResult } from './behaviorEngine';
-import { MLEngine, MLResult, MLConfig } from './mlEngine';
+import { MLEngine, MLConfig } from './mlEngine';
+import type { Finding } from '../ruleEngine';
+
+interface PatternWeightsConfig {
+  heuristics?: number;
+  keywords?: number;
+  headers?: number;
+  reputation?: number;
+  behavior?: number;
+  ml?: number;
+  misc?: number;
+}
+
+interface PatternsConfig {
+  scoringWeights?: PatternWeightsConfig;
+  threatIntelSources?: string[];
+}
+
+const patternsConfig = patterns as PatternsConfig;
 
 export interface AnalysisResult {
   score: number;
   riskLevel: 'Low' | 'Medium' | 'High';
   summary: string;
-  findings: Array<{
-    id: string;
-    severity: 'low' | 'medium' | 'high';
-    text: string;
-    meta?: any;
-    category?: string;
-  }>;
+  findings: Finding[];
   breakdown: {
     rules: {
       score: number;
@@ -84,6 +96,7 @@ export class ScoreCombiner {
     body?: string;
     from?: string;
     headers?: string;
+    userId?: string | null;
   }): Promise<AnalysisResult> {
     const startTime = Date.now();
 
@@ -96,12 +109,12 @@ export class ScoreCombiner {
         details: { receivedCount: 0, suspiciousHeaders: 0 }
       } as HeaderResult),
       this.reputationEngine.analyze(content),
-      Promise.resolve(this.behaviorEngine.analyze({ from: content.from })),
+      Promise.resolve(this.behaviorEngine.analyze({ from: content.from, userId: content.userId || null })),
       this.mlEngine.analyze(content)
     ]);
 
     // Combine scores using the weighting system from patterns.json
-    const scoringWeights: any = (patterns as any).scoringWeights || {};
+    const scoringWeights = patternsConfig.scoringWeights ?? {};
     const weights = {
       heuristics: scoringWeights.heuristics ?? scoringWeights.keywords ?? 0.3,
       headers: scoringWeights.headers ?? 0.2,

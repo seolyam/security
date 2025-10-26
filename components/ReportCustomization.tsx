@@ -10,10 +10,12 @@ import { Badge } from './ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Switch } from './ui/switch';
 import { FileText, Download, Palette, MessageSquare, List, Eye } from 'lucide-react';
-import { AnalysisResult } from '../lib/engines/scoreCombiner';
+import type { AnalysisResult } from '../lib/engines/scoreCombiner';
 import { generateEnhancedPDF, generateEnhancedJSON } from '../lib/enhancedExport';
+import { getAnalysisHistory, type AnalysisHistoryItem } from '../lib/historyUtils';
+import type { Finding } from '../lib/ruleEngine';
 
-interface ReportCustomization {
+interface ReportCustomizationState {
   theme: 'default' | 'dark' | 'minimal' | 'professional';
   branding: {
     companyName: string;
@@ -29,22 +31,105 @@ interface ReportCustomization {
   selectedAnalyses: string[];
 }
 
-interface EmailData {
-  from: string;
-  subject: string;
-  body: string;
-  analyzedAt: Date;
-}
-
 interface BatchAnalysis {
   id: string;
-  email: EmailData;
-  analysis: AnalysisResult;
-  timestamp: number;
+  item: AnalysisHistoryItem;
 }
 
+const normalizeRiskLevel = (value: string): AnalysisResult['riskLevel'] => {
+  if (value === 'Low' || value === 'Medium' || value === 'High') {
+    return value;
+  }
+  const lower = value.toLowerCase();
+  if (lower === 'low') return 'Low';
+  if (lower === 'high') return 'High';
+  return 'Medium';
+};
+
+const createHistoryBreakdown = (score: number): AnalysisResult['breakdown'] => ({
+  rules: {
+    score,
+    percentage: 100,
+    details: {
+      keywordScore: score,
+      urlScore: 0,
+      domainScore: 0,
+      attachmentScore: 0,
+      htmlScore: 0
+    }
+  },
+  headers: {
+    score: 0,
+    percentage: 0,
+    details: {
+      spfStatus: undefined,
+      dkimStatus: undefined,
+      dmarcStatus: undefined,
+      receivedCount: 0,
+      suspiciousHeaders: 0,
+      authPositiveBonus: 0,
+      authSummary: {
+        spfPassed: false,
+        dkimPassed: false,
+        dmarcPassed: false,
+        totalBonus: 0
+      }
+    }
+  },
+  reputation: {
+    score: 0,
+    percentage: 0,
+    details: {
+      emailAddress: null,
+      domain: null,
+      displayName: null,
+      matchedBrand: null,
+      lookalikeDistance: null,
+      suspiciousTokens: []
+    }
+  },
+  behavior: {
+    score: 0,
+    percentage: 0,
+    bonus: 0,
+    details: {
+      totalInteractions: 0,
+      phishingInteractions: 0,
+      safeInteractions: 0,
+      suspiciousInteractions: 0,
+      daysSinceLastInteraction: null,
+      isFirstInteraction: true,
+      firstSeen: undefined,
+      lastSeen: undefined,
+      trustedSender: false
+    }
+  },
+  ml: {
+    score: 0,
+    percentage: 0,
+    confidence: 0,
+    modelUsed: 'history'
+  },
+  misc: {
+    score: 0,
+    percentage: 0
+  }
+});
+
+const convertStoredResult = (item: AnalysisHistoryItem): AnalysisResult => {
+  const findings: Finding[] = item.analysis.findings ?? [];
+  return {
+    score: item.analysis.score,
+    riskLevel: normalizeRiskLevel(item.analysis.riskLevel),
+    summary: item.analysis.summary,
+    findings,
+    breakdown: createHistoryBreakdown(item.analysis.score),
+    processingTime: 0
+  };
+};
+
 export default function ReportCustomization() {
-  const [customization, setCustomization] = useState<ReportCustomization>({
+  const [customization, setCustomization] = useState<ReportCustomizationState>({
     theme: 'default',
     branding: {
       companyName: '',
@@ -62,7 +147,7 @@ export default function ReportCustomization() {
 
   const [isExporting, setIsExporting] = useState(false);
 
-  const handleBrandingChange = (field: string, value: string) => {
+  const handleBrandingChange = (field: keyof ReportCustomizationState['branding'], value: string) => {
     setCustomization(prev => ({
       ...prev,
       branding: {
@@ -74,11 +159,11 @@ export default function ReportCustomization() {
 
   const getBatchAnalyses = (): BatchAnalysis[] => {
     try {
-      const historyJson = localStorage.getItem('phishingsense_history');
-      if (!historyJson) return [];
-
-      const history = JSON.parse(historyJson);
-      return Array.isArray(history) ? history.slice(0, 10) : []; // Last 10 analyses
+      const history = getAnalysisHistory();
+      return history.slice(0, 10).map(item => ({
+        id: item.id,
+        item
+      }));
     } catch (error) {
       console.error('Error loading batch analyses:', error);
       return [];
@@ -101,20 +186,21 @@ export default function ReportCustomization() {
       if (customization.batchExport && customization.selectedAnalyses.length > 0) {
         // Batch export
         const batchAnalyses = getBatchAnalyses();
-        const selectedAnalyses = batchAnalyses.filter(a =>
-          customization.selectedAnalyses.includes(a.id)
+        const selectedAnalyses = batchAnalyses.filter(entry =>
+          customization.selectedAnalyses.includes(entry.id)
         );
 
-        for (const analysis of selectedAnalyses) {
+        for (const entry of selectedAnalyses) {
+          const { item } = entry;
           const emailData = {
-            ...analysis.email,
-            analyzedAt: new Date(analysis.timestamp)
+            ...item.email,
+            analyzedAt: item.email.analyzedAt
           };
 
           if (customization.format === 'pdf') {
-            await generateEnhancedPDF(emailData, analysis.analysis as any);
+            await generateEnhancedPDF(emailData, convertStoredResult(item));
           } else {
-            generateEnhancedJSON(emailData, analysis.analysis as AnalysisResult);
+            generateEnhancedJSON(emailData, convertStoredResult(item));
           }
 
           // Small delay between exports to avoid overwhelming the browser
@@ -332,18 +418,18 @@ export default function ReportCustomization() {
                         <div key={analysis.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
                           <div className="flex-1">
                             <div className="text-sm font-medium truncate">
-                              {analysis.email.subject || 'Untitled'}
+                              {analysis.item.email.subject || 'Untitled'}
                             </div>
                             <div className="text-xs text-gray-500">
-                              {new Date(analysis.timestamp).toLocaleDateString()}
+                              {analysis.item.email.analyzedAt.toLocaleDateString()}
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
                             <Badge variant={
-                              analysis.analysis.score < 30 ? 'default' :
-                              analysis.analysis.score < 70 ? 'secondary' : 'destructive'
+                              analysis.item.analysis.score < 35 ? 'default' :
+                              analysis.item.analysis.score < 60 ? 'secondary' : 'destructive'
                             }>
-                              {analysis.analysis.score}%
+                              {analysis.item.analysis.score}%
                             </Badge>
                             <Switch
                               checked={customization.selectedAnalyses.includes(analysis.id)}

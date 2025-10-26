@@ -17,15 +17,16 @@ const MEDIUM_SCORE = 25;
 const LOW_SCORE = 10;
 
 export class BehaviorEngine {
-  analyze(content: { from?: string | null }): BehaviorResult {
-    const signals = getBehaviorSignals(content.from || null);
-    const trustedSender = isSenderTrusted(content.from, {});
+  analyze(content: { from?: string | null; userId?: string | null }): BehaviorResult {
+    const signals = getBehaviorSignals(content.from || null, content.userId || null);
+    const trustedSender = isSenderTrusted(content.from, { userId: content.userId || null });
+    const hasUserContext = Boolean(content.userId);
     const findings: Finding[] = [];
     const bonusFindings: Finding[] = [];
     let score = 0;
     let bonus = 0;
 
-    if (signals.phishingInteractions > 0) {
+    if (hasUserContext && signals.phishingInteractions > 0) {
       findings.push({
         id: 'behavior-previous-phish',
         severity: 'high',
@@ -36,7 +37,7 @@ export class BehaviorEngine {
       score += HIGH_SCORE;
     }
 
-    if (signals.totalInteractions === 0 || signals.isFirstInteraction) {
+    if (hasUserContext && (signals.totalInteractions === 0 || signals.isFirstInteraction)) {
       findings.push({
         id: 'behavior-first-contact',
         severity: 'medium',
@@ -47,7 +48,7 @@ export class BehaviorEngine {
       score += MEDIUM_SCORE;
     }
 
-    if (signals.daysSinceLastInteraction !== null && signals.daysSinceLastInteraction > 180) {
+    if (hasUserContext && signals.daysSinceLastInteraction !== null && signals.daysSinceLastInteraction > 180) {
       findings.push({
         id: 'behavior-long-dormant',
         severity: 'low',
@@ -68,7 +69,7 @@ export class BehaviorEngine {
       });
     }
 
-    if (signals.safeInteractions >= 3 && signals.phishingInteractions === 0) {
+    if (hasUserContext && signals.safeInteractions >= 3 && signals.phishingInteractions === 0) {
       bonus += 15;
       bonusFindings.push({
         id: 'behavior-frequent-safe',

@@ -3,14 +3,15 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from './authProvider';
 import { SettingsService } from './services/settingsService';
+import type { UserSettings } from './supabase';
 
-type Theme = 'light' | 'dark' | 'system';
+export type Theme = 'light' | 'dark' | 'system';
 
 interface ThemeContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
   resolvedTheme: 'light' | 'dark';
-  userSettings: any;
+  userSettings: UserSettings | null;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -18,7 +19,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>('system');
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
-  const [userSettings, setUserSettings] = useState<any>(null);
+  const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -86,7 +87,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       try {
         await SettingsService.updateUserSettings(user.id, { theme: newTheme });
         // Update local state
-        setUserSettings((prev: any) => ({ ...prev, theme: newTheme }));
+        setUserSettings(prev => (prev ? { ...prev, theme: newTheme } : prev));
       } catch (error) {
         console.error('Error saving theme to cloud:', error);
       }

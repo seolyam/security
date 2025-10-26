@@ -13,7 +13,7 @@ export class IndexedDBManager {
   private static instance: IndexedDBManager;
   private db: IDBDatabase | null = null;
   private config: DatabaseConfig = {
-    name: 'PhishingSenseDB',
+    name: 'PhishsenseDB',
     version: 1,
     stores: {
       trainingSamples: {
@@ -182,7 +182,7 @@ export class IndexedDBManager {
   }
 
   // Get data by index
-  async getByIndex<T>(storeName: string, indexName: string, value: any): Promise<T[]> {
+  async getByIndex<T>(storeName: string, indexName: string, value: IDBValidKey | IDBKeyRange): Promise<T[]> {
     await this.initialize();
 
     return new Promise((resolve, reject) => {
@@ -230,7 +230,7 @@ export class IndexedDBManager {
       try {
         const count = await this.getCount(storeName);
         stats[storeName] = count;
-      } catch (error) {
+      } catch {
         stats[storeName] = 0;
       }
     }
@@ -264,12 +264,12 @@ export class IndexedDBManager {
   }
 
   // Export all data for backup
-  async exportData(): Promise<{ [storeName: string]: any[] }> {
-    const exportData: { [storeName: string]: any[] } = {};
+  async exportData(): Promise<Record<string, unknown[]>> {
+    const exportData: Record<string, unknown[]> = {};
 
     for (const storeName of Object.keys(this.config.stores)) {
       try {
-        const data = await this.getAll(storeName);
+        const data = await this.getAll<unknown>(storeName);
         exportData[storeName] = data;
       } catch (error) {
         console.error(`Error exporting ${storeName}:`, error);
@@ -281,7 +281,7 @@ export class IndexedDBManager {
   }
 
   // Import data from backup
-  async importData(data: { [storeName: string]: any[] }): Promise<{ success: boolean; errors: string[] }> {
+  async importData(data: Record<string, unknown[]>): Promise<{ success: boolean; errors: string[] }> {
     const errors: string[] = [];
 
     for (const [storeName, items] of Object.entries(data)) {

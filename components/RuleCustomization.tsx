@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -8,11 +8,14 @@ import { Label } from './ui/label';
 import { Badge } from './ui/badge';
 import { Settings, Plus, X, RotateCcw, Save, AlertTriangle } from 'lucide-react';
 
+type SeverityLevel = 'low' | 'medium' | 'high';
+type SensitivityLevel = 'lenient' | 'balanced' | 'strict';
+
 interface CustomRule {
   id: string;
   keyword: string;
   category: string;
-  severity: 'low' | 'medium' | 'high';
+  severity: SeverityLevel;
   weight: number;
   enabled: boolean;
 }
@@ -21,36 +24,55 @@ interface RuleCustomizationProps {
   className?: string;
 }
 
+const SENSITIVITY_LEVELS: SensitivityLevel[] = ['lenient', 'balanced', 'strict'];
+const SEVERITY_LEVELS: SeverityLevel[] = ['low', 'medium', 'high'];
+
+function loadStoredRules(): CustomRule[] {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+  try {
+    const stored = localStorage.getItem('phishingsense_custom_rules');
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return Array.isArray(parsed) ? parsed : [];
+    }
+  } catch (error) {
+    console.error('Error reading stored rules:', error);
+  }
+  return [];
+}
+
+function loadStoredSensitivity(): SensitivityLevel {
+  if (typeof window === 'undefined') {
+    return 'balanced';
+  }
+  try {
+    const stored = localStorage.getItem('phishingsense_sensitivity');
+    if (stored === 'lenient' || stored === 'balanced' || stored === 'strict') {
+      return stored;
+    }
+  } catch (error) {
+    console.error('Error reading stored sensitivity:', error);
+  }
+  return 'balanced';
+}
+
 export default function RuleCustomization({ className = '' }: RuleCustomizationProps) {
-  const [customRules, setCustomRules] = useState<CustomRule[]>([]);
-  const [newRule, setNewRule] = useState({
+  const [customRules, setCustomRules] = useState<CustomRule[]>(() => loadStoredRules());
+  const [newRule, setNewRule] = useState<{
+    keyword: string;
+    category: string;
+    severity: SeverityLevel;
+    weight: number;
+  }>({
     keyword: '',
     category: 'custom',
-    severity: 'medium' as 'low' | 'medium' | 'high',
+    severity: 'medium',
     weight: 15
   });
-  const [sensitivity, setSensitivity] = useState<'lenient' | 'balanced' | 'strict'>('balanced');
+  const [sensitivity, setSensitivity] = useState<SensitivityLevel>(() => loadStoredSensitivity());
   const [isModified, setIsModified] = useState(false);
-
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = () => {
-    try {
-      const storedRules = localStorage.getItem('phishingsense_custom_rules');
-      if (storedRules) {
-        setCustomRules(JSON.parse(storedRules));
-      }
-
-      const storedSensitivity = localStorage.getItem('phishingsense_sensitivity');
-      if (storedSensitivity && ['lenient', 'balanced', 'strict'].includes(storedSensitivity)) {
-        setSensitivity(storedSensitivity as 'lenient' | 'balanced' | 'strict');
-      }
-    } catch (error) {
-      console.error('Error loading settings:', error);
-    }
-  };
 
   const saveSettings = () => {
     try {
@@ -104,13 +126,6 @@ export default function RuleCustomization({ className = '' }: RuleCustomizationP
     setIsModified(true);
   };
 
-  const updateRule = (ruleId: string, updates: Partial<CustomRule>) => {
-    setCustomRules(prev => prev.map(r =>
-      r.id === ruleId ? { ...r, ...updates } : r
-    ));
-    setIsModified(true);
-  };
-
   const getSeverityColor = (severity: string) => {
     switch (severity) {
       case 'high': return 'bg-red-100 text-red-800';
@@ -147,12 +162,12 @@ export default function RuleCustomization({ className = '' }: RuleCustomizationP
             <div>
               <Label htmlFor="sensitivity">Sensitivity Level</Label>
               <div className="flex rounded-md border border-gray-200 dark:border-gray-700">
-                {['lenient', 'balanced', 'strict'].map((level) => (
+                {SENSITIVITY_LEVELS.map((level) => (
                   <button
                     key={level}
                     type="button"
                     onClick={() => {
-                      setSensitivity(level as any);
+                      setSensitivity(level);
                       setIsModified(true);
                     }}
                     className={`flex-1 py-2 px-3 text-sm capitalize border-r border-gray-200 dark:border-gray-700 last:border-r-0 ${
@@ -219,11 +234,11 @@ export default function RuleCustomization({ className = '' }: RuleCustomizationP
               <div>
                 <Label htmlFor="severity">Severity</Label>
                 <div className="flex rounded-md border border-gray-200 dark:border-gray-700">
-                  {['low', 'medium', 'high'].map((severity) => (
+                  {SEVERITY_LEVELS.map((severity) => (
                     <button
                       key={severity}
                       type="button"
-                      onClick={() => setNewRule(prev => ({ ...prev, severity: severity as any }))}
+                      onClick={() => setNewRule(prev => ({ ...prev, severity }))}
                       className={`flex-1 py-2 px-3 text-sm capitalize border-r border-gray-200 dark:border-gray-700 last:border-r-0 ${
                         newRule.severity === severity
                           ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
@@ -330,8 +345,8 @@ export default function RuleCustomization({ className = '' }: RuleCustomizationP
       {isModified && (
         <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
           <div className="flex items-center gap-2 text-sm text-yellow-800">
-            <AlertTriangle className="h-4 w-4" />
-            You have unsaved changes. Click "Save Changes" to apply them.
+          <AlertTriangle className="h-4 w-4" />
+          You have unsaved changes. Click &ldquo;Save Changes&rdquo; to apply them.
           </div>
         </div>
       )}

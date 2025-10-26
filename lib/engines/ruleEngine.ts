@@ -5,13 +5,39 @@
  * in email content. It analyzes keywords, URLs, domains, and structural elements
  * to identify potential phishing attempts.
  *
- * @author PhishingSense Team
+ * @author Phishsense Team
  * @version 2.0.0
  * @since 2024
  */
 
 import { Finding } from '../ruleEngine';
 import patterns from '../data/patterns.json';
+
+type KeywordCategoryConfig = {
+  weight: number;
+  severity: 'low' | 'medium' | 'high';
+  patterns: string[];
+};
+
+type UrlPatternsConfig = {
+  shorteners: string[];
+  suspicious: string[];
+  ipPatterns: string[];
+  suspiciousTlds?: string[];
+};
+
+type PatternsShape = {
+  phishingKeywords: Record<string, KeywordCategoryConfig>;
+  legitimateDomains?: string[];
+  trustedDomains?: Record<string, string[]>;
+  trustedUrlPrefixes?: string[];
+  suspiciousDomains: string[];
+  urlPatterns: UrlPatternsConfig;
+  attachmentPatterns: {
+    suspicious: string[];
+  };
+  htmlIndicators: Record<string, string[]>;
+};
 
 /**
  * Configuration options for rule-based analysis
@@ -42,17 +68,16 @@ export interface RuleResult {
 }
 
 export class RuleEngine {
-  private patterns: any;
+  private patterns: PatternsShape;
   private trustedDomainSet: Set<string>;
   private trustedUrlPrefixes: string[];
 
   constructor() {
-    this.patterns = patterns;
-    this.trustedDomainSet = new Set([
-      ...(this.patterns.legitimateDomains || []),
-      ...Object.values(this.patterns.trustedDomains || {}).flat()
-    ].map((d: string) => d.toLowerCase()));
-    this.trustedUrlPrefixes = (this.patterns.trustedUrlPrefixes || []).map((url: string) => url.toLowerCase());
+    this.patterns = patterns as PatternsShape;
+    const trustedDomains = this.patterns.trustedDomains ? Object.values(this.patterns.trustedDomains).flat() : [];
+    const legitimateDomains = this.patterns.legitimateDomains ?? [];
+    this.trustedDomainSet = new Set([...legitimateDomains, ...trustedDomains].map(domain => domain.toLowerCase()));
+    this.trustedUrlPrefixes = (this.patterns.trustedUrlPrefixes ?? []).map(url => url.toLowerCase());
   }
 
   async analyze(content: {
@@ -66,7 +91,7 @@ export class RuleEngine {
     const fullText = `${subject} ${body}`.toLowerCase();
 
     // 1. Keyword Analysis
-    const keywordFindings = this.analyzeKeywords(fullText, subject + ' ' + body);
+    const keywordFindings = this.analyzeKeywords(fullText);
     findings.push(...keywordFindings);
 
     // 2. URL Analysis
@@ -74,7 +99,7 @@ export class RuleEngine {
     findings.push(...urlFindings);
 
     // 3. Domain Analysis
-    const domainFindings = this.analyzeDomains(from, body);
+    const domainFindings = this.analyzeDomains(from);
     findings.push(...domainFindings);
 
     // 4. Attachment Analysis
@@ -110,12 +135,12 @@ export class RuleEngine {
     };
   }
 
-  private analyzeKeywords(text: string, originalText: string): Finding[] {
+  private analyzeKeywords(text: string): Finding[] {
     const findings: Finding[] = [];
     const lowerText = text.toLowerCase();
 
-    Object.entries(this.patterns.phishingKeywords).forEach(([category, config]: [string, any]) => {
-      config.patterns.forEach((pattern: string) => {
+    Object.entries(this.patterns.phishingKeywords).forEach(([category, config]) => {
+      config.patterns.forEach(pattern => {
         let index = -1;
         do {
           index = lowerText.indexOf(pattern, index + 1);
@@ -190,7 +215,7 @@ export class RuleEngine {
     return findings;
   }
 
-  private analyzeDomains(from: string, body: string): Finding[] {
+  private analyzeDomains(from: string): Finding[] {
     const findings: Finding[] = [];
     const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
     const senderEmails = from.match(emailRegex) || [];
@@ -279,7 +304,14 @@ export class RuleEngine {
 
   private calculateKeywordScore(findings: Finding[]): number {
     return findings.reduce((score, finding) => {
-      const weight = this.patterns.phishingKeywords[finding.meta?.category]?.weight || 10;
+      const categoryKey =
+        typeof finding.category === 'string'
+          ? finding.category
+          : typeof finding.meta?.category === 'string'
+            ? finding.meta.category
+            : undefined;
+      const categoryConfig = categoryKey ? this.patterns.phishingKeywords[categoryKey] : undefined;
+      const weight = categoryConfig?.weight ?? 10;
       return score + (finding.severity === 'high' ? weight * 1.5 : finding.severity === 'medium' ? weight : weight * 0.5);
     }, 0);
   }

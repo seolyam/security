@@ -1,50 +1,34 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import { TrendingUp, AlertTriangle, CheckCircle, Activity, Calendar, RefreshCw, User } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
+import { TrendingUp, AlertTriangle, Activity, Calendar, RefreshCw, User } from 'lucide-react';
 import { useAuth } from '../lib/authProvider';
-import { ScanService } from '../lib/services/scanService';
-import { PatternService } from '../lib/services/patternService';
+import { ScanService, type UserScanStats } from '../lib/services/scanService';
+import { PatternService, type PatternStats } from '../lib/services/patternService';
+import type { ScanLog } from '../lib/supabase';
 
 interface AnalyticsData {
   totalAnalyses: number;
   phishingPercentage: number;
   averageScore: number;
   recentTrend: { date: string; count: number; avgScore: number }[];
-  topKeywords: { keyword: string; count: number; severity: string }[];
+  topKeywords: { keyword: string; count: number; severity: 'low' | 'medium' | 'high' }[];
   riskDistribution: { name: string; value: number; color: string }[];
   weeklyActivity: { day: string; analyses: number }[];
-}
-
-interface PatternStats {
-  total: number;
-  bySeverity: {
-    high: number;
-    medium: number;
-    low: number;
-  };
-  byCategory: Record<string, number>;
 }
 
 export default function CloudAnalyticsDashboard() {
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('30d');
-  const [userStats, setUserStats] = useState<any>(null);
   const [patternStats, setPatternStats] = useState<PatternStats | null>(null);
   const { user } = useAuth();
 
-  useEffect(() => {
-    if (user) {
-      loadAnalytics();
-    }
-  }, [user, timeRange]);
-
-  const loadAnalytics = async () => {
+  const loadAnalytics = useCallback(async () => {
     if (!user) return;
 
     setIsLoading(true);
@@ -57,11 +41,11 @@ export default function CloudAnalyticsDashboard() {
         PatternService.getPatternStats(),
       ]);
 
-      setUserStats(stats);
       setPatternStats(patterns);
 
       // Calculate analytics data
-      const data = calculateAnalytics(scans, stats);
+      const filteredScans = filterScansByTimeRange(scans, timeRange);
+      const data = calculateAnalytics(filteredScans, stats);
       setAnalyticsData(data);
     } catch (error) {
       console.error('Error loading analytics:', error);
@@ -69,120 +53,24 @@ export default function CloudAnalyticsDashboard() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user, timeRange]);
 
-  const calculateAnalytics = (scans: any[], stats: any): AnalyticsData => {
-    if (scans.length === 0) {
-      return {
-        totalAnalyses: 0,
-        phishingPercentage: 0,
-        averageScore: 0,
-        recentTrend: [],
-        topKeywords: [],
-        riskDistribution: [
-          { name: 'Low Risk (0-30%)', value: 0, color: '#10b981' },
-          { name: 'Medium Risk (30-70%)', value: 0, color: '#f59e0b' },
-          { name: 'High Risk (70-100%)', value: 0, color: '#ef4444' }
-        ],
-        weeklyActivity: [
-          { day: 'Sun', analyses: 0 },
-          { day: 'Mon', analyses: 0 },
-          { day: 'Tue', analyses: 0 },
-          { day: 'Wed', analyses: 0 },
-          { day: 'Thu', analyses: 0 },
-          { day: 'Fri', analyses: 0 },
-          { day: 'Sat', analyses: 0 }
-        ]
-      };
-    }
-
-    // Calculate risk distribution
-    const riskDistribution = [
-      {
-        name: 'Low Risk (0-30%)',
-        value: scans.filter(s => s.risk_score < 30).length,
-        color: '#10b981'
-      },
-      {
-        name: 'Medium Risk (30-70%)',
-        value: scans.filter(s => s.risk_score >= 30 && s.risk_score < 70).length,
-        color: '#f59e0b'
-      },
-      {
-        name: 'High Risk (70-100%)',
-        value: scans.filter(s => s.risk_score >= 70).length,
-        color: '#ef4444'
-      }
-    ];
-
-    // Calculate recent trend (last 7 days)
-    const recentTrend = [];
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
-
-      const dayScans = scans.filter(scan =>
-        scan.created_at.startsWith(dateStr)
-      );
-
-      recentTrend.push({
-        date: date.toLocaleDateString('en-US', { weekday: 'short' }),
-        count: dayScans.length,
-        avgScore: dayScans.length > 0
-          ? dayScans.reduce((sum, scan) => sum + scan.risk_score, 0) / dayScans.length
-          : 0
-      });
-    }
-
-    // Calculate top keywords
-    const keywordCounts = new Map<string, { count: number; severity: string }>();
-    scans.forEach(scan => {
-      scan.keywords?.forEach((keyword: string) => {
-        const count = keywordCounts.get(keyword) || { count: 0, severity: 'medium' };
-        keywordCounts.set(keyword, {
-          count: count.count + 1,
-          severity: scan.risk_score > 70 ? 'high' : scan.risk_score > 30 ? 'medium' : 'low'
-        });
-      });
-    });
-
-    const topKeywords = Array.from(keywordCounts.entries())
-      .map(([keyword, data]) => ({ keyword, ...data }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
-
-    // Calculate weekly activity
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const weeklyActivity = days.map(day => {
-      const dayScans = scans.filter(scan =>
-        new Date(scan.created_at).toLocaleDateString('en-US', { weekday: 'long' }) === day
-      );
-      return {
-        day,
-        analyses: dayScans.length
-      };
-    });
-
-    return {
-      totalAnalyses: scans.length,
-      phishingPercentage: stats.phishingPercentage,
-      averageScore: stats.avgRiskScore,
-      recentTrend,
-      topKeywords,
-      riskDistribution,
-      weeklyActivity
-    };
-  };
+  useEffect(() => {
+    void loadAnalytics();
+  }, [loadAnalytics]);
 
   if (!user) {
     return (
       <div className="space-y-6">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold mb-2 dark:text-white">Analytics Dashboard</h1>
-          <p className="text-gray-600 dark:text-gray-400">View your analysis statistics and trends</p>
-        </div>
-        <CloudAnalyticsDashboard />
+        <Card>
+          <CardContent className="text-center py-12 space-y-2">
+            <User className="h-12 w-12 mx-auto text-gray-400" />
+            <p className="text-lg font-semibold dark:text-white">Sign in to view cloud analytics</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Create an account or sign in to sync your analysis data across devices.
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -378,6 +266,7 @@ export default function CloudAnalyticsDashboard() {
                   <YAxis yAxisId="left" />
                   <YAxis yAxisId="right" orientation="right" />
                   <Tooltip />
+                  <Legend />
                   <Bar yAxisId="left" dataKey="count" fill="#3b82f6" name="Analyses" />
                   <Line yAxisId="right" type="monotone" dataKey="avgScore" stroke="#ef4444" strokeWidth={2} name="Avg Score %" />
                 </LineChart>
@@ -459,4 +348,113 @@ export default function CloudAnalyticsDashboard() {
       )}
     </div>
   );
+}
+
+type ScanTimeRange = '7d' | '30d' | '90d';
+
+function filterScansByTimeRange(scans: ScanLog[], range: ScanTimeRange): ScanLog[] {
+  const days = range === '7d' ? 7 : range === '30d' ? 30 : 90;
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  return scans.filter(scan => new Date(scan.created_at).getTime() >= cutoff);
+}
+
+function calculateAnalytics(scans: ScanLog[], stats: UserScanStats): AnalyticsData {
+  if (scans.length === 0) {
+    return {
+      totalAnalyses: 0,
+      phishingPercentage: 0,
+      averageScore: 0,
+      recentTrend: [],
+      topKeywords: [],
+      riskDistribution: [
+        { name: 'Low Risk (0-35%)', value: 0, color: '#10b981' },
+        { name: 'Medium Risk (35-60%)', value: 0, color: '#f59e0b' },
+        { name: 'High Risk (60-100%)', value: 0, color: '#ef4444' }
+      ],
+      weeklyActivity: [
+        { day: 'Sun', analyses: 0 },
+        { day: 'Mon', analyses: 0 },
+        { day: 'Tue', analyses: 0 },
+        { day: 'Wed', analyses: 0 },
+        { day: 'Thu', analyses: 0 },
+        { day: 'Fri', analyses: 0 },
+        { day: 'Sat', analyses: 0 }
+      ]
+    };
+  }
+
+  const riskDistribution = [
+    {
+      name: 'Low Risk (0-35%)',
+      value: scans.filter(s => s.risk_score < 35).length,
+      color: '#10b981'
+    },
+    {
+      name: 'Medium Risk (35-60%)',
+      value: scans.filter(s => s.risk_score >= 35 && s.risk_score < 60).length,
+      color: '#f59e0b'
+    },
+    {
+      name: 'High Risk (60-100%)',
+      value: scans.filter(s => s.risk_score >= 60).length,
+      color: '#ef4444'
+    }
+  ];
+
+  const recentTrend: AnalyticsData['recentTrend'] = [];
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toISOString().split('T')[0];
+
+    const dayScans = scans.filter(scan =>
+      scan.created_at.startsWith(dateStr)
+    );
+
+    recentTrend.push({
+      date: date.toLocaleDateString('en-US', { weekday: 'short' }),
+      count: dayScans.length,
+      avgScore: dayScans.length > 0
+        ? dayScans.reduce((sum, scan) => sum + scan.risk_score, 0) / dayScans.length
+        : 0
+    });
+  }
+
+  const keywordCounts = new Map<string, { count: number; severity: 'low' | 'medium' | 'high' }>();
+  scans.forEach(scan => {
+    scan.keywords?.forEach(keyword => {
+      const count = keywordCounts.get(keyword) || { count: 0, severity: 'medium' };
+      keywordCounts.set(keyword, {
+        count: count.count + 1,
+        severity: scan.risk_score > 60 ? 'high' : scan.risk_score >= 35 ? 'medium' : 'low'
+      });
+    });
+  });
+
+  const topKeywords = Array.from(keywordCounts.entries())
+    .map(([keyword, data]) => ({ keyword, ...data }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const weeklyActivity = days.map(day => {
+    const dayScans = scans.filter(scan => {
+      const weekday = new Date(scan.created_at).toLocaleDateString('en-US', { weekday: 'short' });
+      return weekday === day;
+    });
+    return {
+      day,
+      analyses: dayScans.length
+    };
+  });
+
+  return {
+    totalAnalyses: scans.length,
+    phishingPercentage: stats.phishingPercentage,
+    averageScore: stats.avgRiskScore,
+    recentTrend,
+    topKeywords,
+    riskDistribution,
+    weeklyActivity
+  };
 }

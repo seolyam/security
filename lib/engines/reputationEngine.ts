@@ -8,6 +8,7 @@ import {
   containsSuspiciousUnicode,
   hasNumericLookalike
 } from '../utils';
+import { getThreatIntelData, ThreatIntelData } from '../services/threatIntelService';
 
 export interface ReputationResult {
   score: number;
@@ -29,11 +30,11 @@ interface BrandProfile {
 
 const HIGH_SCORE = 40;
 const MEDIUM_SCORE = 25;
-const LOW_SCORE = 10;
 
 export class ReputationEngine {
   private trustedDomains: Set<string>;
   private brandProfiles: BrandProfile[];
+  private threatIntel: ThreatIntelData | null = null;
 
   constructor() {
     const trusted = [
@@ -52,10 +53,23 @@ export class ReputationEngine {
     }));
   }
 
+  private async ensureThreatIntelLoaded(): Promise<void> {
+    if (!this.threatIntel) {
+      try {
+        this.threatIntel = await getThreatIntelData();
+      } catch (error) {
+        console.warn('Unable to load threat intel, falling back to defaults:', error);
+        this.threatIntel = null;
+      }
+    }
+  }
+
   async analyze(content: { from?: string; subject?: string; body?: string }): Promise<ReputationResult> {
     const findings: Finding[] = [];
     const { displayName, address, domain } = extractEmailParts(content.from || '');
     const normalizedDomain = normalizeDomain(domain);
+
+    await this.ensureThreatIntelLoaded();
 
     if (!address || !normalizedDomain) {
       return {
@@ -78,6 +92,18 @@ export class ReputationEngine {
     let lookalikeDistance: number | null = null;
 
     const baseDomain = stripSubdomain(normalizedDomain).split('.')[0];
+
+    if (this.threatIntel?.maliciousDomains?.some(indicator => normalizedDomain.endsWith(indicator.toLowerCase()))) {
+      findings.push({
+        id: `threatintel-domain-${normalizedDomain}`,
+        severity: 'high',
+        text: `Domain ${normalizedDomain} appears in external threat intelligence feeds`,
+        category: 'reputation',
+        meta: { indicator: normalizedDomain }
+      });
+      score += HIGH_SCORE;
+      suspiciousTokens.push('threat-intel-domain');
+    }
 
     // Detect brand impersonation via display name mismatch
     if (displayName) {
@@ -188,6 +214,22 @@ export class ReputationEngine {
         meta: { domain: normalizedDomain }
       });
       score += MEDIUM_SCORE;
+    }
+
+    if (this.threatIntel?.maliciousUrls?.length) {
+      const haystack = `${content.subject || ''} ${content.body || ''}`.toLowerCase();
+      const match = this.threatIntel.maliciousUrls.find(url => haystack.includes(url.toLowerCase()));
+      if (match) {
+        findings.push({
+          id: `threatintel-url-${match}`,
+          severity: 'high',
+          text: 'Email references a URL flagged by external threat intelligence feeds',
+          category: 'reputation',
+          meta: { indicator: match }
+        });
+        score += HIGH_SCORE;
+        suspiciousTokens.push('threat-intel-url');
+      }
     }
 
     return {

@@ -1,6 +1,13 @@
 import { supabase } from '../supabase';
 import type { ScanLog } from '../supabase';
 
+export interface UserScanStats {
+  totalScans: number;
+  avgRiskScore: number;
+  phishingPercentage: number;
+  recentScans: number;
+}
+
 export interface CreateScanData {
   subject: string;
   body?: string;
@@ -13,7 +20,7 @@ export interface CreateScanData {
 }
 
 export class ScanService {
-  static async createScan(userId: string, scanData: CreateScanData) {
+  static async createScan(userId: string, scanData: CreateScanData): Promise<ScanLog> {
     const { data, error } = await supabase
       .from('scan_logs')
       .insert({
@@ -31,10 +38,10 @@ export class ScanService {
       .single();
 
     if (error) throw error;
-    return data;
+    return data as ScanLog;
   }
 
-  static async getUserScans(userId: string, limit = 50, offset = 0) {
+  static async getUserScans(userId: string, limit = 50, offset = 0): Promise<ScanLog[]> {
     const { data, error } = await supabase
       .from('scan_logs')
       .select('*')
@@ -43,10 +50,10 @@ export class ScanService {
       .range(offset, offset + limit - 1);
 
     if (error) throw error;
-    return data;
+    return (data ?? []) as ScanLog[];
   }
 
-  static async getScanById(scanId: string, userId: string) {
+  static async getScanById(scanId: string, userId: string): Promise<ScanLog> {
     const { data, error } = await supabase
       .from('scan_logs')
       .select('*')
@@ -55,20 +62,19 @@ export class ScanService {
       .single();
 
     if (error) throw error;
-    return data;
+    return data as ScanLog;
   }
 
-  static async deleteScan(scanId: string, userId: string) {
+  static async deleteScan(scanId: string, userId: string): Promise<void> {
     const { error } = await supabase
       .from('scan_logs')
       .delete()
-      .eq('id', scanId)
-      .eq('user_id', userId);
+      .match({ id: scanId, user_id: userId });
 
     if (error) throw error;
   }
 
-  static async getUserStats(userId: string) {
+  static async getUserStats(userId: string): Promise<UserScanStats> {
     const { data, error } = await supabase
       .from('scan_logs')
       .select('risk_score, verdict, created_at')
@@ -76,7 +82,9 @@ export class ScanService {
 
     if (error) throw error;
 
-    if (!data || data.length === 0) {
+    const scans = (data ?? []) as Array<Pick<ScanLog, 'risk_score' | 'verdict' | 'created_at'>>;
+
+    if (scans.length === 0) {
       return {
         totalScans: 0,
         avgRiskScore: 0,
@@ -85,15 +93,15 @@ export class ScanService {
       };
     }
 
-    const totalScans = data.length;
-    const avgRiskScore = data.reduce((sum, scan) => sum + scan.risk_score, 0) / totalScans;
-    const phishingCount = data.filter(scan => scan.verdict === 'phishing').length;
+    const totalScans = scans.length;
+    const avgRiskScore = scans.reduce((sum, scan) => sum + scan.risk_score, 0) / totalScans;
+    const phishingCount = scans.filter(scan => scan.verdict === 'phishing').length;
     const phishingPercentage = (phishingCount / totalScans) * 100;
 
     // Recent scans (last 7 days)
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const recentScans = data.filter(scan =>
+    const recentScans = scans.filter(scan =>
       new Date(scan.created_at) >= sevenDaysAgo
     ).length;
 
@@ -116,7 +124,7 @@ export class ScanService {
     return data;
   }
 
-  static async searchScans(userId: string, query: string, limit = 20) {
+  static async searchScans(userId: string, query: string, limit = 20): Promise<ScanLog[]> {
     const { data, error } = await supabase
       .from('scan_logs')
       .select('*')
@@ -126,6 +134,6 @@ export class ScanService {
       .limit(limit);
 
     if (error) throw error;
-    return data;
+    return (data ?? []) as ScanLog[];
   }
 }

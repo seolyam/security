@@ -1,3 +1,6 @@
+import { supabase, type TrustedSender } from '../supabase';
+import type { AnalysisResult } from '../engines/scoreCombiner';
+
 export interface TrustedRecord {
   id: string;
   sender: string;
@@ -87,6 +90,94 @@ export function getTrustedRecords(options: StoreOptions = {}): TrustedRecord[] {
   return records.filter(record => !record.userId || record.userId === options.userId);
 }
 
+function mergeRemoteRecords(userId: string, remoteRecords: TrustedRecord[]) {
+  const existing = loadRecords();
+  const remoteSenders = new Set(remoteRecords.map(record => record.sender));
+  const withoutUser = existing.filter(record => {
+    if (record.userId && record.userId === userId) {
+      return false;
+    }
+    if (!record.userId && remoteSenders.has(record.sender)) {
+      return false;
+    }
+    return true;
+  });
+  const merged = [...withoutUser, ...remoteRecords];
+  const deduped = merged.reduce<TrustedRecord[]>((acc, record) => {
+    const key = `${record.userId || 'global'}_${record.sender}`;
+    const index = acc.findIndex(item => `${item.userId || 'global'}_${item.sender}` === key);
+    if (index >= 0) {
+      acc[index] = record;
+    } else {
+      acc.push(record);
+    }
+    return acc;
+  }, []);
+  persistRecords(deduped);
+}
+
+async function upsertRemoteTrustedRecord(record: TrustedRecord): Promise<void> {
+  if (!record.userId) return;
+  try {
+    const { error } = await supabase.from('trusted_senders').upsert({
+      id: record.id,
+      user_id: record.userId,
+      sender: record.sender,
+      domain: record.domain,
+      subject: record.subject ?? null,
+      notes: record.notes ?? null,
+      confirmation_count: record.confirmationCount,
+      auth_snapshot: record.authSnapshot ?? null,
+      created_at: record.createdAt,
+      updated_at: new Date().toISOString(),
+      last_confirmed_at: record.lastConfirmedAt
+    }, { onConflict: 'id' });
+    if (error) console.error('Supabase trusted_senders upsert error:', error);
+  } catch (error) {
+    console.error('Supabase trusted_senders upsert exception:', error);
+  }
+}
+
+async function deleteRemoteTrustedRecord(id: string, userId?: string | null): Promise<void> {
+  if (!userId) return;
+  try {
+    const { error } = await supabase.from('trusted_senders').delete().match({ user_id: userId, id });
+    if (error) console.error('Supabase trusted_senders delete error:', error);
+  } catch (error) {
+    console.error('Supabase trusted_senders delete exception:', error);
+  }
+}
+
+export async function syncTrustedRecordsFromRemote(userId?: string | null): Promise<void> {
+  if (!userId) return;
+  try {
+    const { data, error } = await supabase
+      .from('trusted_senders')
+      .select('*')
+      .match({ user_id: userId });
+    if (error) {
+      console.error('Supabase trusted_senders fetch error:', error);
+      return;
+    }
+    if (!data) return;
+    const mapped: TrustedRecord[] = data.map((item: TrustedSender) => ({
+      id: item.id,
+      sender: item.sender,
+      domain: item.domain,
+      subject: item.subject ?? undefined,
+      userId,
+      createdAt: item.created_at,
+      lastConfirmedAt: item.last_confirmed_at,
+      confirmationCount: item.confirmation_count ?? 1,
+      notes: item.notes ?? undefined,
+      authSnapshot: item.auth_snapshot ?? undefined
+    }));
+    mergeRemoteRecords(userId, mapped);
+  } catch (error) {
+    console.error('Supabase trusted_senders sync exception:', error);
+  }
+}
+
 export function isSenderTrusted(sender?: string | null, options: StoreOptions = {}): boolean {
   const domain = extractDomain(sender);
   if (!domain) return false;
@@ -132,7 +223,9 @@ export function recordTrustedSender({
     existing.confirmationCount += 1;
     existing.authSnapshot = authSnapshot || existing.authSnapshot;
     if (subject) existing.subject = subject;
+    if (userId) existing.userId = userId;
     persistRecords(records);
+    void upsertRemoteTrustedRecord(existing);
     return existing;
   }
 
@@ -151,13 +244,17 @@ export function recordTrustedSender({
 
   records.push(newRecord);
   persistRecords(records);
+  void upsertRemoteTrustedRecord(newRecord);
   return newRecord;
 }
 
-export function removeTrustedRecord(id: string): void {
+export async function removeTrustedRecord(id: string, userId?: string | null): Promise<void> {
   const records = loadRecords();
   const next = records.filter(record => record.id !== id);
   persistRecords(next);
+  if (userId) {
+    await deleteRemoteTrustedRecord(id, userId);
+  }
 }
 
 export function getLegitimacySnapshot({
@@ -166,20 +263,16 @@ export function getLegitimacySnapshot({
   userId
 }: {
   sender?: string | null;
-  analysis?: {
-    breakdown?: {
-      headers?: { details?: any };
-      ml?: { score: number; confidence: number };
-    };
-  } & Record<string, any>;
+  analysis?: Partial<AnalysisResult>;
   userId?: string | null;
 }) {
   const domain = extractDomain(sender);
   const trustedByUser = isSenderTrusted(sender, { userId });
-  const authDetails = analysis?.breakdown?.headers?.details || {};
-  const authStrong = ['pass', 'none'].includes(authDetails.spfStatus) &&
-    ['pass', 'none'].includes(authDetails.dkimStatus) &&
-    ['pass', 'none'].includes(authDetails.dmarcStatus);
+  type HeaderDetails = NonNullable<AnalysisResult['breakdown']['headers']['details']>;
+  const authDetails = (analysis?.breakdown?.headers?.details ?? {}) as Partial<HeaderDetails>;
+  const authStrong = ['pass', 'none'].includes(authDetails.spfStatus ?? '') &&
+    ['pass', 'none'].includes(authDetails.dkimStatus ?? '') &&
+    ['pass', 'none'].includes(authDetails.dmarcStatus ?? '');
   const mlScore = analysis?.breakdown?.ml?.score ?? 0;
   const mlConfidence = analysis?.breakdown?.ml?.confidence ?? 0;
   const mlSupports = mlScore < 40 && mlConfidence >= 0.5;
@@ -194,3 +287,5 @@ export function getLegitimacySnapshot({
     recommendation: trustedByUser || authStrong ? 'likely-safe' : 'review'
   };
 }
+
+export type LegitimacySnapshot = ReturnType<typeof getLegitimacySnapshot>;
