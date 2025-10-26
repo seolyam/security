@@ -329,14 +329,14 @@ private static async createUserProfile(userId: string, email: string, fullName?:
       throw new Error('Cannot connect to database. Please check your Supabase configuration.');
     }
 
-    // IMPORTANT: Always use the authUser passed from signUp
-    // Don't call getUser() again as the session might not be fully established
-    const user = authUser;
-    
-    if (!user) {
+    // CRITICAL: Use the authUser passed from signUp
+    // DO NOT call getUser() - the session isn't established in the browser yet!
+    if (!authUser) {
       console.error('❌ No auth user provided when creating profile');
-      throw new Error('User authentication data not available. Please try signing in.');
+      throw new Error('User authentication data not available during signup.');
     }
+
+    const user = authUser;
 
     console.log('✅ Using authenticated user for profile creation:', {
       authUserId: user.id,
@@ -344,7 +344,7 @@ private static async createUserProfile(userId: string, email: string, fullName?:
       email: user.email
     });
 
-    // Add a small delay to ensure auth session is fully propagated
+    // Add a small delay to ensure auth session is propagated to Supabase servers
     await new Promise(resolve => setTimeout(resolve, 500));
 
     const { data, error } = await supabase
@@ -372,25 +372,28 @@ private static async createUserProfile(userId: string, email: string, fullName?:
         currentAuthEmail: user?.email
       });
 
+      // Handle empty error objects
+      if (!error || Object.keys(error).length === 0) {
+        console.error('🚨 Empty error object received from Supabase');
+        throw new Error(
+          'Database operation failed. This usually means:\n' +
+          '1. Database tables do not exist - run schema in SQL Editor\n' +
+          '2. RLS policies are blocking the operation\n' +
+          '3. Auth session not properly established\n' +
+          'Please check Supabase dashboard and console logs.'
+        );
+      }
+
       // Handle specific error codes
       if (error.code === '42P01') {
         throw new Error('Database tables not found. Please run the database schema in Supabase SQL Editor.');
       } else if (error.code === '42501') {
-        // Get the current session to debug
-        const { data: { session } } = await supabase.auth.getSession();
-        console.error('🔍 RLS Policy Check Failed. Current session:', {
-          hasSession: !!session,
-          sessionUserId: session?.user?.id,
-          profileUserId: userId,
-          match: session?.user?.id === userId
-        });
-        
         throw new Error(
-          'Access denied by Row Level Security. This usually means:\n' +
-          '1. The RLS policy is missing or incorrect\n' +
-          '2. The auth session is not fully established\n' +
-          'Please check: Supabase Dashboard > Database > users table > Policies\n' +
-          'Required policy: INSERT with WITH CHECK (auth.uid() = id)'
+          'Access denied by Row Level Security policies. Please verify:\n' +
+          '1. RLS policy exists: "Users can insert their own profile"\n' +
+          '2. Policy uses: FOR INSERT WITH CHECK (auth.uid() = id)\n' +
+          '3. Policy is enabled for authenticated role\n' +
+          'Check: Supabase Dashboard > Database > users table > Policies'
         );
       } else if (error.code === '23505') {
         console.log('✅ User profile already exists, skipping creation');
